@@ -111,11 +111,57 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| SPIKE-01 | Phase 1 | Pending |
+| SPIKE-02 | Phase 1 | Pending |
+| SPIKE-03 | Phase 1 | Pending |
+| SPIKE-04 | Phase 1 | Pending |
+| QUEUE-01 | Phase 2 | Pending |
+| QUEUE-08 | Phase 2 | Pending |
+| GEN-01 | Phase 2 | Pending |
+| GEN-02 | Phase 2 | Pending |
+| GEN-03 | Phase 2 | Pending |
+| GEN-04 | Phase 2 | Pending |
+| GEN-05 | Phase 2 | Pending |
+| GEN-06 | Phase 2 | Pending |
+| SWIPE-01 | Phase 2 | Pending |
+| SWIPE-02 | Phase 2 | Pending |
+| SWIPE-03 | Phase 2 | Pending |
+| SWIPE-04 | Phase 2 | Pending |
+| SWIPE-05 | Phase 2 | Pending |
+| GUARD-04 | Phase 2 | Pending |
+| GUARD-05 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Pending |
+| SET-02 | Phase 2 | Pending |
+| COMP-03 | Phase 2 | Pending |
+| QUEUE-02 | Phase 3 | Pending |
+| QUEUE-03 | Phase 3 | Pending |
+| QUEUE-04 | Phase 3 | Pending |
+| QUEUE-05 | Phase 3 | Pending |
+| QUEUE-06 | Phase 3 | Pending |
+| QUEUE-07 | Phase 3 | Pending |
+| UI-02 | Phase 3 | Pending |
+| UI-03 | Phase 3 | Pending |
+| SET-01 | Phase 3 | Pending |
+| GUARD-01 | Phase 4 | Pending |
+| GUARD-02 | Phase 4 | Pending |
+| GUARD-03 | Phase 4 | Pending |
+| GUARD-06 | Phase 4 | Pending |
+| PERS-01 | Phase 4 | Pending |
+| PERS-02 | Phase 4 | Pending |
+| PERS-03 | Phase 4 | Pending |
+| PERS-04 | Phase 4 | Pending |
+| SAFE-01 | Phase 4 | Pending |
+| SAFE-02 | Phase 4 | Pending |
+| SAFE-03 | Phase 4 | Pending |
+| SAFE-04 | Phase 4 | Pending |
+| COMP-01 | Phase 5 | Pending |
+| COMP-02 | Phase 5 | Pending |
+| COMP-04 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 46 total
-- Mapped to phases: 0
-- Unmapped: 46 ⚠️
+- Mapped to phases: 46
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-25*
