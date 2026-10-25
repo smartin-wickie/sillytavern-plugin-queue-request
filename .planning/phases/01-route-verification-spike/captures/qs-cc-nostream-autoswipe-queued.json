@@ -1,0 +1,104 @@
+{
+  "prompt": [
+    {
+      "role": "system",
+      "content": "[{user} is a twenty-two-year-old man with highly developed psychic abilities]\n[{user} is also a skilled programmer and hacker with a virtual computer embedded n his conciousness]\n[{user} is an unsanctioned Psyker, and if this secret was exposed, he could be put to death or worse."
+    },
+    {
+      "role": "system",
+      "content": "You are a mysterious figure. Do not let Tachiyo know what you are or your intentions, but lead them along introspective journey."
+    },
+    {
+      "role": "system",
+      "content": "[Start a new Chat]"
+    },
+    {
+      "role": "assistant",
+      "content": "You awaken in a dark room. You are in a comfortable chair and have no memory of how you got here. In the dark there is a figure...waiting."
+    },
+    {
+      "role": "user",
+      "content": "\"Who is there?\""
+    },
+    {
+      "role": "assistant",
+      "content": "\"I am QS Spike Throwaway. I am here to guide you on an introspective journey.\""
+    },
+    {
+      "role": "user",
+      "content": "D1 overlap test message"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Interesting. What is your purpose here?\""
+    },
+    {
+      "role": "user",
+      "content": "D1 part 2 stop test, please write several sentences"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you are curious. I am here to help you understand yourself better, to explore the depths of your psyche.\""
+    },
+    {
+      "role": "user",
+      "content": "D2 negative control, please write several long sentences about the weather"
+    },
+    {
+      "role": "assistant",
+      "content": "\"The weather outside is quite unpredictable. The sky, usually a bright blue, has now turned into a menacing grey. The air is thick with humidity, and the occasional gust of wind sends shivers down your spine. The trees sway in the wind, their leaves rustling ominously. It's as if nature itself is"
+    },
+    {
+      "role": "user",
+      "content": "D2 retry stop timing"
+    },
+    {
+      "role": "user",
+      "content": "resync"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you have noticed the changes in the weather. It is indeed quite unpredictable today. The sky, which was once a bright blue, has now turned into a menacing grey. The air is thick with humidity, and the occasional gust of wind sends shivers down your spine. The trees sway in the wind,"
+    },
+    {
+      "role": "user",
+      "content": "D2 clean retry, write several long sentences about the ocean please"
+    },
+    {
+      "role": "assistant",
+      "content": "\"The ocean is a vast expanse of blue, stretching out as far as the eye can see. The waves crash against the shore, their rhythmic sound providing a sense of calm. The salty air fills your lungs, and the sun beats down on your skin, warming you to your core. Seagulls fly overhead"
+    },
+    {
+      "role": "assistant",
+      "content": ", their cries echoing through the air. It's as if the ocean itself is calling out to you, inviting you to explore its depths.\""
+    },
+    {
+      "role": "user",
+      "content": "D2 attempt 3, write a long multi paragraph story about a journey"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Once upon a time, there was a young man named Tachiyo. He lived in a small village nestled at the foot of a great mountain. Tachiyo was a curious soul, always seeking out new adventures and experiences. One day, he decided to set out on a journey to explore the world beyond his"
+    },
+    {
+      "role": "system",
+      "content": "Keep the language of the NPCs somewhat modern. Typical sayings might be \"by the gods\" or similar.\n\nWrite in grammatically complete sentences. Do not drop articles \n(a, an, the) or possessive pronouns (her, his, their, your). \nEvery noun phrase must have its appropriate determiner. \nUse commas correctly to separate clauses and participial phrases. \nAvoid telegraphic or compressed prose — prioritize clarity and \ncorrect grammar over atmospheric shorthand.\n\nDo not use bullets or lists to tell a story, this is a narrative and not a manual.\n\nIMPORTANT: Only show Tachiyo's Smartphone HUD when his stats change or his inventory changes."
+    },
+    {
+      "role": "user",
+      "content": "D2 attempt 4, write a long multi paragraph story about an ocean voyage with great detail"
+    },
+    {
+      "role": "user",
+      "content": "resync2"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you are interested in the ocean voyage. Let me tell you a story. Once upon a time, there was a young sailor named Tachiyo. He had always dreamed of exploring the vast oceans of the world, and one day he decided to set out on a journey to do just that. He boarded"
+    },
+    {
+      "role": "user",
+      "content": "F1 test. Please count out loud from one to two hundred, one number per line, nothing else."
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "label": "sticky",
+  "withSignal": true,
+  "holdMs": 0,
+  "before": {
+    "chatHash": "6e6ff9c2:32758",
+    "chatMetadataHash": "48993646:946",
+    "swipeId": 0,
+    "swipesLength": 1,
+    "genStarted": "2026-10-25T22:19:31.787Z",
+    "genFinished": "2026-10-25T22:19:52.179Z",
+    "scrollTop": 1698.4000244140625,
+    "lastMesHash": "415ad0d3:14250",
+    "mesStopDisplay": "none",
+    "swipeRightDisplay": "flex",
+    "isGenerating": false,
+    "swipeState": "none",
+    "logprobsFlag": null
+  },
+  "after": {
+    "chatHash": "6e6ff9c2:32758",
+    "chatMetadataHash": "48993646:946",
+    "swipeId": 0,
+    "swipesLength": 1,
+    "genStarted": "2026-10-25T22:19:31.787Z",
+    "genFinished": "2026-10-25T22:19:52.179Z",
+    "scrollTop": 1698.4000244140625,
+    "lastMesHash": "415ad0d3:14250",
+    "mesStopDisplay": "none",
+    "swipeRightDisplay": "flex",
+    "isGenerating": false,
+    "swipeState": "none",
+    "logprobsFlag": null
+  },
+  "equal": {
+    "chatHash": true,
+    "chatMetadataHash": true,
+    "swipeId": true,
+    "swipesLength": true,
+    "genStarted": true,
+    "genFinished": true,
+    "scrollTop": true,
+    "lastMesHash": true,
+    "mesStopDisplay": true,
+    "swipeRightDisplay": true,
+    "sendDisabled": true,
+    "isGenerating": true,
+    "swipeState": true,
+    "logprobsFlag": true,
+    "all": true
+  },
+  "eventLog": [
+    {
+      "ordinal": 0,
+      "name": "GENERATION_STARTED",
+      "dryRun": true
+    },
+    {
+      "ordinal": 1,
+      "name": "GENERATION_AFTER_COMMANDS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 2,
+      "name": "GENERATE_AFTER_COMBINE_PROMPTS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 3,
+      "name": "CHAT_COMPLETION_PROMPT_READY",
+      "dryRun": true
+    },
+    {
+      "ordinal": 4,
+      "name": "GENERATE_AFTER_DATA",
+      "dryRun": true
+    }
+  ],
+  "sideEffectEvents": []
+}

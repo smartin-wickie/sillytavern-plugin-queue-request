@@ -1,0 +1,120 @@
+{
+  "label": "overlap-nosignal",
+  "withSignal": false,
+  "holdMs": 8000,
+  "before": {
+    "chatHash": "a8d7558:14165",
+    "chatMetadataHash": "60bf1a08:871",
+    "swipeId": 0,
+    "swipesLength": 1,
+    "genStarted": "2026-10-25T22:08:09.719Z",
+    "genFinished": "2026-10-25T22:08:10.588Z",
+    "scrollTop": 973.5999755859375,
+    "lastMesHash": "79bb15ea:14285",
+    "mesStopDisplay": "none",
+    "swipeRightDisplay": "flex",
+    "isGenerating": false,
+    "swipeState": "none",
+    "logprobsFlag": null
+  },
+  "after": {
+    "chatHash": "26572f8a:14471",
+    "chatMetadataHash": "60bf1a08:871",
+    "swipeId": null,
+    "swipesLength": null,
+    "genStarted": null,
+    "genFinished": null,
+    "scrollTop": 1066.4000244140625,
+    "lastMesHash": "8ccbedec:9249",
+    "mesStopDisplay": "none",
+    "swipeRightDisplay": "flex",
+    "isGenerating": false,
+    "swipeState": "none",
+    "logprobsFlag": null
+  },
+  "equal": {
+    "chatHash": false,
+    "chatMetadataHash": true,
+    "swipeId": false,
+    "swipesLength": false,
+    "genStarted": false,
+    "genFinished": false,
+    "scrollTop": false,
+    "lastMesHash": false,
+    "mesStopDisplay": true,
+    "swipeRightDisplay": true,
+    "sendDisabled": true,
+    "isGenerating": true,
+    "swipeState": true,
+    "logprobsFlag": true,
+    "all": false
+  },
+  "eventLog": [
+    {
+      "ordinal": 0,
+      "name": "GENERATION_STARTED",
+      "dryRun": true
+    },
+    {
+      "ordinal": 1,
+      "name": "GENERATION_STARTED",
+      "dryRun": false
+    },
+    {
+      "ordinal": 2,
+      "name": "GENERATION_AFTER_COMMANDS",
+      "dryRun": false
+    },
+    {
+      "ordinal": 3,
+      "name": "GENERATION_STOPPED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 4,
+      "name": "GENERATION_ENDED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 5,
+      "name": "GENERATE_AFTER_COMBINE_PROMPTS",
+      "dryRun": false
+    },
+    {
+      "ordinal": 6,
+      "name": "CHAT_COMPLETION_PROMPT_READY",
+      "dryRun": false
+    },
+    {
+      "ordinal": 7,
+      "name": "GENERATE_AFTER_DATA",
+      "dryRun": false
+    },
+    {
+      "ordinal": 8,
+      "name": "GENERATION_ENDED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 9,
+      "name": "GENERATION_AFTER_COMMANDS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 10,
+      "name": "GENERATE_AFTER_COMBINE_PROMPTS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 11,
+      "name": "CHAT_COMPLETION_PROMPT_READY",
+      "dryRun": true
+    },
+    {
+      "ordinal": 12,
+      "name": "GENERATE_AFTER_DATA",
+      "dryRun": true
+    }
+  ],
+  "sideEffectEvents": []
+}

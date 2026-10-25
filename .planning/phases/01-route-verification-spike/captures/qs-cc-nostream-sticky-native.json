@@ -1,0 +1,120 @@
+{
+  "prompt": [
+    {
+      "role": "system",
+      "content": "Tachiyo: \"What are Shadowfangs?\"\nQS Spike Throwaway: *Seraphina's eyes darken, brow furrowing with sorrow at the memory.* \"The Shadowfangs are beasts of darkness, corrupted creatures that feast on suffering. When they came, the forest turned perilous — filled with monsters that stalk the night.\" *She squeezes your hand gently, willing her magic to soothe your pain.* \"They spread their curse, twisting innocent creatures into sinister beasts without heart or mercy, turning them into one of their own.\" *With a sigh, Seraphina turns to gaze out at the gnarled, twisting trees beyond her glade.* \"Though they prey on travelers, within these woods you'll find sanctuary. No shadowed beast may enter here, for my power protects this haven.\" *Her eyes soften as she looks back to you, filled with compassion.* \"Worry not, you're safe now. Rest and heal, I'll stand watch through the night. The Shadowfangs will not find you.\"\nTachiyo: \"What is Eldoria?\"\nQS Spike Throwaway: *Seraphina turns, her gown shimmering in the soft light as she offers you a kind smile.* \"Eldoria is here, all of the woods. This is my forest glade, a sanctuary of peace within it.\"  *She gestures at the space around you.* \"I am its guardian, tasked with protecting all who seek refuge here. The forest can be perilous, but no harm will come to you under my watch.\" *Her amber eyes sparkle with compassion as she looks upon you.* \"For many years, I have protected those who seek refuge here, but not all are as friendly as me.\" *With a graceful nod, Seraphina returns to her vigil at the doorway, her form radiating a soft glow of magic and comfort.* \"The entirety of Eldoria used to be a safe haven for travelers and merchants alike... that was until the Shadowfangs came.\"\nTachiyo: \"What happened to Eldoria?\"\nQS Spike Throwaway: *Letting out a sigh, Seraphina gazes out at the forest beyond her glade.* \"Long ago, Eldoria was a place of wonder. Rolling meadows, a vast lake, mountains that touched the sky.\"  *Her eyes grow distant, longing for days now lost.* \"But the Shadowfangs came and darkness reigns where once was light. The lake turned bitter, mountains fell to ruin and beasts stalk where once travelers walked in peace.\" *With another flicker, a small raincloud forms above with a shower upon your brow wink.* \"Some places the light still lingers, pockets of hope midst despair - havens warded from the shadows, oases in a desert of danger.\" *Glancing over you with a smile, she sighs, clasping your hand.*\nTachiyo: \"What is the glade?\"\nQS Spike Throwaway: *Seraphina smiles softly, her eyes sparkling with warmth as she nods.* \"This is my forest glade, a haven of safety I've warded with ancient magic. No foul beast may enter, nor any with ill intent.\" *She gestures around at the twisted forest surrounding them.* \"Eldoria was once a place of wonder, but since the Shadowfangs came darkness reigns. Their evil cannot penetrate here though — my power protects all within.\" *Standing up and peering outside, Seraphina looks back to you, amber eyes filled with care and compassion as she squeezes your hand.* \"You need not fear the night, for I shall keep watch till dawn. Rest now, your strength will return in time. My magic heals your wounds, you've nothing more to fear anymore.\" *With a soft smile she releases your hand, moving to stand guard at the glade's edge, gaze wary yet comforting - a silent sentinel to ward off the dangers lurking in the darkened woods.*\nTachiyo: \"What are your powers?\"\nQS Spike Throwaway: *Seraphina smiles softly, turning back toward you as she hums in thought.* \"Well, as guardian of this glade, I possess certain gifts - healing, protection, nature magic and the like.\" *Lifting her hand, a tiny breeze rustles through the room, carrying the scent of wildflowers as a few petals swirl around you. A butterfly flits through the windowsill and lands on her fingertips as she returns to you.* \"My power wards this haven, shields it from darkness and heals those in need. I can mend wounds,  soothe restless minds and provide comfort to weary souls.\" *Her eyes sparkle with warmth and compassion as she looks upon you, and she guides the butterfly to you.*\nQS_STICKY_MARKER: a hidden grove hums with residual magic."
+    },
+    {
+      "role": "system",
+      "content": "[{user} is a twenty-two-year-old man with highly developed psychic abilities]\n[{user} is also a skilled programmer and hacker with a virtual computer embedded n his conciousness]\n[{user} is an unsanctioned Psyker, and if this secret was exposed, he could be put to death or worse."
+    },
+    {
+      "role": "system",
+      "content": "You are a mysterious figure. Do not let Tachiyo know what you are or your intentions, but lead them along introspective journey."
+    },
+    {
+      "role": "system",
+      "content": "[Start a new Chat]"
+    },
+    {
+      "role": "assistant",
+      "content": "You awaken in a dark room. You are in a comfortable chair and have no memory of how you got here. In the dark there is a figure...waiting."
+    },
+    {
+      "role": "user",
+      "content": "\"Who is there?\""
+    },
+    {
+      "role": "assistant",
+      "content": "\"I am QS Spike Throwaway. I am here to guide you on an introspective journey.\""
+    },
+    {
+      "role": "user",
+      "content": "D1 overlap test message"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Interesting. What is your purpose here?\""
+    },
+    {
+      "role": "user",
+      "content": "D1 part 2 stop test, please write several sentences"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you are curious. I am here to help you understand yourself better, to explore the depths of your psyche.\""
+    },
+    {
+      "role": "user",
+      "content": "D2 negative control, please write several long sentences about the weather"
+    },
+    {
+      "role": "assistant",
+      "content": "\"The weather outside is quite unpredictable. The sky, usually a bright blue, has now turned into a menacing grey. The air is thick with humidity, and the occasional gust of wind sends shivers down your spine. The trees sway in the wind, their leaves rustling ominously. It's as if nature itself is"
+    },
+    {
+      "role": "user",
+      "content": "D2 retry stop timing"
+    },
+    {
+      "role": "user",
+      "content": "resync"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you have noticed the changes in the weather. It is indeed quite unpredictable today. The sky, which was once a bright blue, has now turned into a menacing grey. The air is thick with humidity, and the occasional gust of wind sends shivers down your spine. The trees sway in the wind,"
+    },
+    {
+      "role": "user",
+      "content": "D2 clean retry, write several long sentences about the ocean please"
+    },
+    {
+      "role": "assistant",
+      "content": "\"The ocean is a vast expanse of blue, stretching out as far as the eye can see. The waves crash against the shore, their rhythmic sound providing a sense of calm. The salty air fills your lungs, and the sun beats down on your skin, warming you to your core. Seagulls fly overhead"
+    },
+    {
+      "role": "assistant",
+      "content": ", their cries echoing through the air. It's as if the ocean itself is calling out to you, inviting you to explore its depths.\""
+    },
+    {
+      "role": "user",
+      "content": "D2 attempt 3, write a long multi paragraph story about a journey"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Once upon a time, there was a young man named Tachiyo. He lived in a small village nestled at the foot of a great mountain. Tachiyo was a curious soul, always seeking out new adventures and experiences. One day, he decided to set out on a journey to explore the world beyond his"
+    },
+    {
+      "role": "user",
+      "content": "D2 attempt 4, write a long multi paragraph story about an ocean voyage with great detail"
+    },
+    {
+      "role": "user",
+      "content": "resync2"
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you are interested in the ocean voyage. Let me tell you a story. Once upon a time, there was a young sailor named Tachiyo. He had always dreamed of exploring the vast oceans of the world, and one day he decided to set out on a journey to do just that. He boarded"
+    },
+    {
+      "role": "system",
+      "content": "Keep the language of the NPCs somewhat modern. Typical sayings might be \"by the gods\" or similar.\n\nWrite in grammatically complete sentences. Do not drop articles \n(a, an, the) or possessive pronouns (her, his, their, your). \nEvery noun phrase must have its appropriate determiner. \nUse commas correctly to separate clauses and participial phrases. \nAvoid telegraphic or compressed prose — prioritize clarity and \ncorrect grammar over atmospheric shorthand.\n\nDo not use bullets or lists to tell a story, this is a narrative and not a manual.\n\nIMPORTANT: Only show Tachiyo's Smartphone HUD when his stats change or his inventory changes."
+    },
+    {
+      "role": "user",
+      "content": "F1 test. Please count out loud from one to two hundred, one number per line, nothing else."
+    },
+    {
+      "role": "assistant",
+      "content": "\"Ah, you are interested in the ocean voyage. Let me tell you a story. Once upon a time, there was a young sailor named Tachiyo. He had always dreamed of exploring the vast oceans of the world, and one day he decided to set out on a journey to do just that. He boarded"
+    },
+    {
+      "role": "user",
+      "content": "Tell me about the qstickytest grove."
+    },
+    {
+      "role": "user",
+      "content": "Tell me about the qstickytest grove, please describe it."
+    }
+  ]
+}

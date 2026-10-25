@@ -1,0 +1,156 @@
+{
+  "label": "overlap-signal",
+  "withSignal": true,
+  "holdMs": 8000,
+  "before": {
+    "chatHash": "dae7cfe2:3983",
+    "chatMetadataHash": "4ab606e7:871",
+    "swipeId": 5,
+    "swipesLength": 6,
+    "genStarted": "2026-10-25T21:54:49.088Z",
+    "genFinished": "2026-10-25T21:54:50.339Z",
+    "scrollTop": 0,
+    "lastMesHash": "734d15a4:17209",
+    "mesStopDisplay": "none",
+    "swipeRightDisplay": "flex",
+    "isGenerating": false,
+    "swipeState": "none",
+    "logprobsFlag": null
+  },
+  "after": {
+    "chatHash": "fa6187ef:4998",
+    "chatMetadataHash": "4ab606e7:871",
+    "swipeId": 0,
+    "swipesLength": 1,
+    "genStarted": "2026-10-25T22:03:52.504Z",
+    "genFinished": "2026-10-25T22:03:52.790Z",
+    "scrollTop": 0,
+    "lastMesHash": "baf664b4:14039",
+    "mesStopDisplay": "none",
+    "swipeRightDisplay": "flex",
+    "isGenerating": false,
+    "swipeState": "none",
+    "logprobsFlag": null
+  },
+  "equal": {
+    "chatHash": false,
+    "chatMetadataHash": true,
+    "swipeId": false,
+    "swipesLength": false,
+    "genStarted": false,
+    "genFinished": false,
+    "scrollTop": true,
+    "lastMesHash": false,
+    "mesStopDisplay": true,
+    "swipeRightDisplay": true,
+    "sendDisabled": true,
+    "isGenerating": true,
+    "swipeState": true,
+    "logprobsFlag": true,
+    "all": false
+  },
+  "eventLog": [
+    {
+      "ordinal": 0,
+      "name": "GENERATION_STARTED",
+      "dryRun": true
+    },
+    {
+      "ordinal": 1,
+      "name": "GENERATION_STARTED",
+      "dryRun": false
+    },
+    {
+      "ordinal": 2,
+      "name": "GENERATION_AFTER_COMMANDS",
+      "dryRun": false
+    },
+    {
+      "ordinal": 3,
+      "name": "GENERATE_AFTER_COMBINE_PROMPTS",
+      "dryRun": false
+    },
+    {
+      "ordinal": 4,
+      "name": "CHAT_COMPLETION_PROMPT_READY",
+      "dryRun": false
+    },
+    {
+      "ordinal": 5,
+      "name": "GENERATE_AFTER_DATA",
+      "dryRun": false
+    },
+    {
+      "ordinal": 6,
+      "name": "GENERATION_ENDED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 7,
+      "name": "MESSAGE_RECEIVED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 8,
+      "name": "CHARACTER_MESSAGE_RENDERED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 9,
+      "name": "GENERATION_STARTED",
+      "dryRun": true
+    },
+    {
+      "ordinal": 10,
+      "name": "GENERATION_AFTER_COMMANDS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 11,
+      "name": "GENERATE_AFTER_COMBINE_PROMPTS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 12,
+      "name": "CHAT_COMPLETION_PROMPT_READY",
+      "dryRun": true
+    },
+    {
+      "ordinal": 13,
+      "name": "GENERATE_AFTER_DATA",
+      "dryRun": true
+    },
+    {
+      "ordinal": 14,
+      "name": "GENERATION_AFTER_COMMANDS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 15,
+      "name": "GENERATE_AFTER_COMBINE_PROMPTS",
+      "dryRun": true
+    },
+    {
+      "ordinal": 16,
+      "name": "CHAT_COMPLETION_PROMPT_READY",
+      "dryRun": true
+    },
+    {
+      "ordinal": 17,
+      "name": "GENERATE_AFTER_DATA",
+      "dryRun": true
+    }
+  ],
+  "sideEffectEvents": [
+    {
+      "ordinal": 7,
+      "name": "MESSAGE_RECEIVED",
+      "dryRun": null
+    },
+    {
+      "ordinal": 8,
+      "name": "CHARACTER_MESSAGE_RENDERED",
+      "dryRun": null
+    }
+  ]
+}

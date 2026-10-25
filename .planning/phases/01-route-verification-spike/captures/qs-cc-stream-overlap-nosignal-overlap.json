@@ -1,0 +1,17 @@
+{
+  "withSignal": false,
+  "holdMs": 8000,
+  "result": {
+    "equal": false,
+    "sideEffectEvents": 0,
+    "promptMessages": 21,
+    "promptChars": null
+  },
+  "error": null,
+  "isGenerating": false,
+  "swipeState": "none",
+  "mesStopHidden": true,
+  "nativeGenStarted": null,
+  "nativeGenFinished": null,
+  "nativeStopWorked": null
+}
