@@ -41,6 +41,17 @@ const state = {
 const ctx = () => SillyTavern.getContext();
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * JSON-safe clone. The textgenerationwebui/llama.cpp generate_data params object carries a
+ * `parseSequenceBreakers` function property that is never deleted after use (ST
+ * scripts/textgen-settings.js:1666-1828), so structuredClone() throws DataCloneError on that
+ * route. JSON round-trip drops non-serializable values (functions, undefined) the same way our
+ * dumped JSON files already would.
+ */
+function jsonClone(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
 function fail(err) {
     console.error('[qsSpike]', err);
     return err;
@@ -193,7 +204,7 @@ async function capture({ label, holdMs = 0, withSignal = true } = {}) {
     };
     const onData = (data, dryRun) => {
         if (armed && dryRun === true) {
-            captured = structuredClone(data);
+            captured = jsonClone(data);
             armed = false;
         }
     };
@@ -332,7 +343,7 @@ async function armNative({ label } = {}) {
     const once = (data, dryRun) => {
         if (dryRun) return;
         eventSource.removeListener(event_types.GENERATE_AFTER_DATA, once);
-        dump(fileName('native', label), structuredClone(data)).catch(fail);
+        dump(fileName('native', label), jsonClone(data)).catch(fail);
     };
     eventSource.makeLast(event_types.GENERATE_AFTER_DATA, once);
     return { armed: true, file: fileName('native', label) };
