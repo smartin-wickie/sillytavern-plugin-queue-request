@@ -86,7 +86,7 @@ A SillyTavern UI extension that queues swipe generations for the latest AI messa
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Route Verification Spike | 5/7 | In Progress|  |
+| 1. Route Verification Spike | 6/7 | In Progress|  |
 | 2. Single Queued Swipe End-to-End | 0/TBD | Not started | - |
 | 3. Full Queue Control & UI | 0/TBD | Not started | - |
 | 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
