@@ -1,0 +1,9 @@
+{
+  "display_name": "QS Route Spike",
+  "loading_order": 100,
+  "js": "index.js",
+  "author": "seant",
+  "version": "0.0.1",
+  "minimum_client_version": "1.19.0",
+  "hooks": { "activate": "init" }
+}
