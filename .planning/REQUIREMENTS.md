@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Route Verification (Spike)
 
-- [ ] **SPIKE-01**: Generation route (R1 dryRun capture + own transport vs R2 native swipe + view restore) chosen with evidence from a live ST 1.19.0 instance, recorded in PROJECT.md Key Decisions
-- [ ] **SPIKE-02**: Captured prompt for a queued swipe matches a native swipe prompt on one Chat Completion and one Text Completion backend (diff recorded, known gaps documented)
-- [ ] **SPIKE-03**: Stop-with-partial behavior, `power_user.auto_swipe` reachability, and interceptor (Vectors) parity verified and policy recorded
-- [ ] **SPIKE-04**: PROJECT.md and CLAUDE.md "serial through native pipeline" decision reworded to match chosen route
+- [x] **SPIKE-01**: Generation route (R1 dryRun capture + own transport vs R2 native swipe + view restore) chosen with evidence from a live ST 1.19.0 instance, recorded in PROJECT.md Key Decisions
+- [x] **SPIKE-02**: Captured prompt for a queued swipe matches a native swipe prompt on one Chat Completion and one Text Completion backend (diff recorded, known gaps documented)
+- [x] **SPIKE-03**: Stop-with-partial behavior, `power_user.auto_swipe` reachability, and interceptor (Vectors) parity verified and policy recorded
+- [x] **SPIKE-04**: PROJECT.md and CLAUDE.md "serial through native pipeline" decision reworded to match chosen route
 
 ### Queue Control
 
@@ -111,10 +111,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SPIKE-01 | Phase 1 | Pending |
-| SPIKE-02 | Phase 1 | Pending |
-| SPIKE-03 | Phase 1 | Pending |
-| SPIKE-04 | Phase 1 | Pending |
+| SPIKE-01 | Phase 1 | Done |
+| SPIKE-02 | Phase 1 | Done |
+| SPIKE-03 | Phase 1 | Done |
+| SPIKE-04 | Phase 1 | Done |
 | QUEUE-01 | Phase 2 | Pending |
 | QUEUE-08 | Phase 2 | Pending |
 | GEN-01 | Phase 2 | Pending |
