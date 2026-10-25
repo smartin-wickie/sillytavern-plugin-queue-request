@@ -381,7 +381,7 @@ async function status() {
     const c = guard();
     let version = null;
     try {
-        const res = await fetch('/version', { method: 'POST', headers: c.getRequestHeaders() });
+        const res = await fetch('/version');
         if (res.ok) version = await res.json();
     } catch (err) {
         fail(err);

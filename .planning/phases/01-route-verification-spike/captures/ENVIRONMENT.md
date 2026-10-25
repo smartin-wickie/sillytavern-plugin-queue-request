@@ -71,3 +71,33 @@ Started by the orchestrator (inline, plan 01-04 Task 1) on 2026-10-25. LM Studio
 - ST URL: http://127.0.0.1:8001/ (HTTP 200)
 - Spike junction: `E:\SillyTavern\public\scripts\extensions\third-party\qs-route-spike` -> `D:\repositories\sillytavern-plugin-queue-request\spike` (repointed from the 01-02 worktree after merge)
 - Other local services during the spike: Ollama on 127.0.0.1:11434 (untouched)
+
+### Operator GUI setup (plan 01-04 Task 2)
+- UI shows `SillyTavern 1.19.0 'release' (06bde939f)`. `GET /version`: `{"agent":"SillyTavern:1.19.0:Cohee#1207","pkgVersion":"1.19.0","gitRevision":"06bde939f","gitBranch":"release","isLatest":true}`
+- Character `QS Spike Throwaway` (single, not group) created; one exchange in chat, last message from AI. World Info entry with keyword trigger, Sticky 3.
+- Connections: CC Custom `http://127.0.0.1:8080/v1`; TC llama.cpp `http://127.0.0.1:8080`. Presets temperature 0, response length 64, no logprobs; CC "Squash system messages" OFF.
+- Spike fix found here: `qsSpike.status()` used `POST /version`, but ST serves `GET /version` (src/server-main.js:272), so `version` came back null. Fixed in spike/index.js to plain `fetch('/version')`.
+- Disabled extensions after setup (26, all user extensions; bundled ones left on, so the original `translate`/`expressions` entries are not in this list):
+  `third-party/Extension-CustomSliders, third-party/Extension-EmojiPicker, third-party/Extension-ImageMetadataViewer, third-party/SillyTavern-MessageSummarize, third-party/Extension-Dice, third-party/Extension-Objective, third-party/Extension-PromptInspector, third-party/SillyTavern-Timelines, third-party/Extension-Randomizer, third-party/Extension-WebSearch, third-party/Extension-TopInfoBar, third-party/Extension-CodeMirror, third-party/Extension-CodeRunner, third-party/Extension-LaTeX, third-party/Extension-Mermaid, third-party/Extension-Notebook, third-party/Extension-QuickContextSize, third-party/Extension-QuickPersona, third-party/Extension-SamplerCommands, third-party/GuidedGenerations-Extension, third-party/SillyTavern-Character-Creator, third-party/SillyTavern-Custom-Scenario, third-party/SillyTavern-Roadway, third-party/SillyTavern-Variable-Viewer, third-party/SillyTavern-WI-Bulk-Mover, third-party/SillyTavern-WorldInfo-Recommender`
+
+`qsSpike.status()` output (before the /version fix):
+```json
+{
+  "version": null,
+  "mainApi": "textgenerationwebui",
+  "streaming": true,
+  "auto_swipe": false,
+  "auto_swipe_minimum_length": 0,
+  "auto_swipe_blacklist": [],
+  "auto_swipe_blacklist_threshold": 2,
+  "interceptors": [
+    { "name": "stable-diffusion", "fn": "SD_ProcessTriggers", "loaded": true },
+    { "name": "vectors", "fn": "vectors_rearrangeChat", "loaded": true },
+    { "name": "third-party/Extension-Randomizer", "fn": "randomizerInterceptor", "loaded": false },
+    { "name": "third-party/Extension-WebSearch", "fn": "WebSearch_Intercept", "loaded": false },
+    { "name": "third-party/SillyTavern-MessageSummarize", "fn": "memory_intercept_messages", "loaded": false }
+  ]
+}
+```
+`qsSpike.snapshot()` returned an object. No module import error.
+Note: bundled `stable-diffusion` and `vectors` interceptors are loaded (they run on every non-dry generation); Vectors is not enabled for the chat per operator.
