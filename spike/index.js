@@ -17,6 +17,9 @@ import {
 
 const THROWAWAY_NAME = 'QS Spike Throwaway';
 const REDACT_KEYS = ['proxy_password', 'custom_include_headers', 'api_key', 'custom_url'];
+// Defense-in-depth: redact by key-name shape too, not just an exact-string allowlist (code review CR-01).
+// Catches credential-bearing fields the exact list doesn't name (e.g. other preset/proxy URL fields).
+const REDACT_KEY_RE = /key|token|password|secret|proxy|auth/i;
 const LOG_EVENTS = [
     'GENERATION_STARTED',
     'GENERATION_AFTER_COMMANDS',
@@ -101,7 +104,7 @@ function hash(str) {
 
 /** Upload a redacted JSON dump to user/files; fall back to a browser download. */
 async function dump(name, obj) {
-    const replacer = (k, v) => (REDACT_KEYS.includes(k) ? '[redacted]' : v);
+    const replacer = (k, v) => (REDACT_KEYS.includes(k) || REDACT_KEY_RE.test(k) ? '[redacted]' : v);
     const text = JSON.stringify(obj, replacer, 2);
     try {
         const data = btoa(unescape(encodeURIComponent(text)));

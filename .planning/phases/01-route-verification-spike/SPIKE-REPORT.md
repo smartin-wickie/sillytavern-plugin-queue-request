@@ -115,3 +115,9 @@ Executed after route approval (Task 3, plan 01-07):
 - Re-select presets: `oai_settings.preset_settings_openai` = `Default32k`, `textgenerationwebui_settings.preset` = `Mistral-V7-Tekken-T8-XML`, `power_user.instruct.preset` = `Sphiratrioth - LLAMA 3` (Instruct Mode was left OFF during the spike's TC testing).
 - The throwaway character `QS Spike Throwaway` and its chat remain in your ST install; delete if not wanted.
 - The temporary World Info test entry (`qstickytest`, uid 4, on the `Eldoria` lorebook) was already removed during plan 01-06; no action needed there.
+
+## Post-decision code review
+
+Phase 01's code review (`01-REVIEW.md`, 1 critical, 4 warning, 4 info) ran after this route was approved. One finding (WR-01) affected evidence quality directly: `diff-captures.mjs`'s Chat Completion branch never diffed body keys outside `{role, name, content}` per message, so the matrix's `STRICT DIFF: none` claims for CC combos only checked message content. Fixed the tool and re-ran it against the already-saved dump files (static JSON, no server needed) — **result unchanged**: all CC baseline combos and the sticky-activation-turn dump still show zero body-key differences; the squash-ON gap is still message-content-only. Full account in `captures/MATRIX-RESULTS.md` and `captures/BEHAVIOR-RESULTS.md` "Post-review strictness fix". The critical finding (CR-01, narrow secret-redaction allowlist) was checked empirically against every committed dump with two independent broader patterns — no unredacted secret-shaped values found — and the spike's redaction was broadened as defense-in-depth regardless.
+
+**The route decision (R1, APPROVED) is unaffected.** No open code-review finding bears on criteria a, c, or d (the hard blockers); the one finding that touched criterion b's evidence was re-verified with the same result.

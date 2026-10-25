@@ -84,3 +84,7 @@ A temporary WI entry (`qstickytest`, sticky 3, non-constant) was added to the ch
 No criterion that is a hard blocker for R1 (a, c, d) failed. Criterion b's only gap (squash ON) is explicitly allowed by the Go/No-Go table and matches the source prediction exactly, with no surprises.
 
 RECOMMEND: R1
+
+## Post-review strictness fix (01-REVIEW.md CR-01/WR-01)
+
+Code review (`01-REVIEW.md`) found `diff-captures.mjs`'s Chat Completion branch never diffed body keys outside `{role, name, content}` per message. Fixed and re-ran against the already-saved sticky and squash dumps in this directory (no server needed). **Result: unchanged.** `qs-cc-nostream-sticky-queued.json` vs `qs-cc-nostream-sticky-native.json` still reports `Body keys that differ: (none)` and `STRICT DIFF: none`; the squash-ON gap is still message-content-only. See `MATRIX-RESULTS.md` "Post-review strictness fix" for the full account, including the secret-scan re-check (CR-01).

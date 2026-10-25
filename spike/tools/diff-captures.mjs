@@ -62,6 +62,14 @@ if (Array.isArray(a.prompt) || Array.isArray(b.prompt)) {
             for (const l of lineDiff(norm(x), norm(y))) console.log(l);
         }
     }
+    const ccKeys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => k !== 'prompt').sort();
+    const ccRows = ccKeys.filter((k) => norm(a[k]) !== norm(b[k]));
+    console.log('\nBody keys that differ (expect none; dry-run capture and native send use the same live settings):');
+    if (ccRows.length === 0) console.log('  (none)');
+    for (const k of ccRows) {
+        console.log(`  ${k}: queued=${inspect(a[k])} native=${inspect(b[k])}`);
+        diffs++;
+    }
 } else {
     const sa = typeof a.prompt === 'string' ? a.prompt : '';
     const sb = typeof b.prompt === 'string' ? b.prompt : '';
