@@ -58,3 +58,16 @@ Read-only from E:\SillyTavern\data\default-user\settings.json (no secrets read).
 - `--help` mentions `--jinja`: yes (3 matching lines)
 - Preferred model: D:\old-models\Chat\dolphin-2.9-llama3-8b.Q8_0.gguf (8541301056 bytes, present). Other Llama-3 candidates in the same folder: L3-8B-Stheno-v3.1-Q8_0-imat.gguf, Llama-3-Soliloquy-8B-v2-Q8_0-imat.gguf.
 - Planned ports: llama-server 8080, ST 8001.
+
+## Spike session setup
+Started by the orchestrator (inline, plan 01-04 Task 1) on 2026-10-25. LM Studio model was unloaded by the user first; VRAM before start: 3230 / 24564 MiB.
+
+- llama-server command: `E:\text-generation-webui\installer_files\env\Lib\site-packages\llama_cpp_binaries\bin\llama-server.exe -m "D:\old-models\Chat\dolphin-2.9-llama3-8b.Q8_0.gguf" --host 127.0.0.1 --port 8080 -c 8192 -ngl 99 --jinja`
+- ST command: `node server.js --port 8001` (cwd E:\SillyTavern); startup log prints `SillyTavern 1.19.0` and lists `third-party/qs-route-spike` as a global extension
+- llama-server PID: 55716
+- ST PID: 29100
+- Model id (/v1/models): `D:\old-models\Chat\dolphin-2.9-llama3-8b.Q8_0.gguf`
+- Smoke tests: /health `{"status":"ok"}`; CC POST /v1/chat/completions 200 ("Hi there! How can I assist you today?"); TC POST /completion 200 (non-empty text; raw prompt without template gives off-topic output, expected)
+- ST URL: http://127.0.0.1:8001/ (HTTP 200)
+- Spike junction: `E:\SillyTavern\public\scripts\extensions\third-party\qs-route-spike` -> `D:\repositories\sillytavern-plugin-queue-request\spike` (repointed from the 01-02 worktree after merge)
+- Other local services during the spike: Ollama on 127.0.0.1:11434 (untouched)
