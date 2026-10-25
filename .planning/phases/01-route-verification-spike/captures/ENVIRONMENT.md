@@ -101,3 +101,4 @@ Started by the orchestrator (inline, plan 01-04 Task 1) on 2026-10-25. LM Studio
 ```
 `qsSpike.snapshot()` returned an object. No module import error.
 Note: bundled `stable-diffusion` and `vectors` interceptors are loaded (they run on every non-dry generation); Vectors is not enabled for the chat per operator.
+- TC instruct: Instruct Mode OFF (template selector greyed out; stored preset `Sphiratrioth - LLAMA 3` is not applied). Kept fixed for all TC runs.
