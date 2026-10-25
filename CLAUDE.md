@@ -10,7 +10,7 @@ SillyTavern (ST) UI extension: queue multiple swipe generations for the latest A
 
 ## Locked decisions (do not contradict; see `AGENTS.md`)
 - UI extension only, no server plugin (v1).
-- Serial execution through ST's native generation pipeline. Never fire concurrent `Generate('swipe')`; breaks single-flight state (`is_send_press`, abort/streaming controller).
+- Serial execution through an own scheduler: native prompt build via dry-run `Generate('swipe')` capture, own transport, native cleanup helpers; the extension never starts a non-dry `Generate`. Never fire concurrent `Generate('swipe')`; breaks single-flight state (`is_send_press`, abort/streaming controller). Interceptors, CC squash, WI timed effects and itemized prompts are not applied (documented gaps; see `.planning/phases/01-route-verification-spike/SPIKE-REPORT.md`).
 - Append on completion to `message.swipes[]` + parallel `swipe_info[]` (`send_date`, `gen_started`, `gen_finished`, `extra`). Do not pre-reserve empty swipe slots (show in pager). Do not change `swipe_id` unless user opted in.
 - Queue persists across refresh, stored with chat (likely `chat_metadata`).
 - Clear/pause on `CHAT_CHANGED`, message delete/edit, new user message. Per-item errors must not block queue.
@@ -21,7 +21,9 @@ SillyTavern (ST) UI extension: queue multiple swipe generations for the latest A
 Extension lives in `public/scripts/extensions/third-party/<name>/` (or user data dir `data/<user>/extensions/<name>/`), entry `manifest.json` (`js`, `css`, `display_name`, `author`, `minimum_client_version`).
 
 ## Unverified assumptions
-Design docs mark many ST internals as `[Recall]`, not read from source. Verify against ST `public/script.js` before relying on them: `swipe_right` guards, whether `Generate('swipe')` can target a non-visible swipe, prompt capture hooks (`GENERATE_AFTER_DATA`), streaming write timing into `mes`, event names (`MESSAGE_SWIPED`, `GENERATION_STOPPED`, etc.). Open requirement questions (resume auto-run vs ask, manual send vs running queue, default max queue 5) are listed in `02-requirements-draft.md` §7.
+Phase 1's live spike against ST 1.19.0 verified the items design docs previously marked `[Recall]` (see `.planning/phases/01-route-verification-spike/SPIKE-REPORT.md` and `SOURCE-FINDINGS.md` for line citations):
+- **Verified:** `swipe_right`/`isSwipingAllowed` guards (`script.js:9162-9169`); `Generate('swipe', {}, true)` dry-run capture via `GENERATE_AFTER_DATA` (`script.js:5318-5322`); the dry run does not write into `mes` or stream (confirmed runtime, criterion a); event names `GENERATION_STARTED`, `GENERATE_AFTER_DATA`, `GENERATION_STOPPED`, `MESSAGE_SWIPED` (`SOURCE-FINDINGS.md` "Reverified line numbers").
+- **Still unverified / genuinely open:** requirement questions not resolved by the spike (resume auto-run vs ask, manual send vs running queue, default max queue 5) — see `02-requirements-draft.md` §7.
 
 ## Compatibility
 Must coexist with Deep-Swipe, UserSwipes, Prompt Inspector (Deep-Swipe/Prompt Inspector already conflict over generation state).
@@ -31,7 +33,7 @@ Must coexist with Deep-Swipe, UserSwipes, Prompt Inspector (Deep-Swipe/Prompt In
 
 **Queued Swipes for SillyTavern**
 
-A SillyTavern (ST) UI extension that lets the user queue several swipe generations for the latest AI message while they keep reading the current one. Queued requests run one at a time in the background through ST's native generation pipeline, and each completed result is appended as a normal swipe page (`k/total` grows) without changing what the user is looking at. Built for the author's own use, distributable as a community third-party extension.
+A SillyTavern (ST) UI extension that lets the user queue several swipe generations for the latest AI message while they keep reading the current one. Queued requests run one at a time in the background via dry-run prompt capture and an own transport, and each completed result is appended as a normal swipe page (`k/total` grows) without changing what the user is looking at. Built for the author's own use, distributable as a community third-party extension.
 
 **Core Value:** The user can line up multiple alternative replies and keep reading undisturbed; every completed generation shows up as a normal swipe page, and the chat is never corrupted.
 
@@ -39,7 +41,7 @@ A SillyTavern (ST) UI extension that lets the user queue several swipe generatio
 
 - **Tech stack**: Browser ES module UI extension, `manifest.json` entry (`js`, `css`, `display_name`, `author`, `minimum_client_version`) — ST extension loader requirement
 - **APIs**: Only ST public surface — `getContext()`, `eventSource`, `event_types`, `extension_settings[MODULE_NAME]`, `saveSettingsDebounced()`, `saveChatConditional()`; no core file modifications
-- **Execution**: Serial, one generation at a time through ST native pipeline — single-flight global state
+- **Execution**: Serial execution through an own scheduler: native prompt build via dry-run `Generate('swipe')` capture, own transport, native cleanup helpers; the extension never starts a non-dry `Generate`. Interceptors, CC squash, WI timed effects and itemized prompts are not applied (documented gaps).
 - **Data safety**: Never write `chat.jsonl` directly; only ST save functions — prevent chat corruption
 - **Compatibility**: Current ST release branch; declare `minimum_client_version`
 - **Security**: No secrets stored; reuse ST backend proxy

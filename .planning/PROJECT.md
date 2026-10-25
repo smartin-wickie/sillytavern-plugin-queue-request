@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A SillyTavern (ST) UI extension that lets the user queue several swipe generations for the latest AI message while they keep reading the current one. Queued requests run one at a time in the background through ST's native generation pipeline, and each completed result is appended as a normal swipe page (`k/total` grows) without changing what the user is looking at. Built for the author's own use, distributable as a community third-party extension.
+A SillyTavern (ST) UI extension that lets the user queue several swipe generations for the latest AI message while they keep reading the current one. Queued requests run one at a time in the background via dry-run prompt capture and an own transport, and each completed result is appended as a normal swipe page (`k/total` grows) without changing what the user is looking at. Built for the author's own use, distributable as a community third-party extension.
 
 ## Core Value
 
@@ -55,7 +55,7 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 
 - **Tech stack**: Browser ES module UI extension, `manifest.json` entry (`js`, `css`, `display_name`, `author`, `minimum_client_version`) — ST extension loader requirement
 - **APIs**: Only ST public surface — `getContext()`, `eventSource`, `event_types`, `extension_settings[MODULE_NAME]`, `saveSettingsDebounced()`, `saveChatConditional()`; no core file modifications
-- **Execution**: Serial, one generation at a time through ST native pipeline — single-flight global state
+- **Execution**: Serial execution through an own scheduler: native prompt build via dry-run `Generate('swipe')` capture, own transport, native cleanup helpers; the extension never starts a non-dry `Generate`. Interceptors, CC squash, WI timed effects and itemized prompts are not applied (documented gaps).
 - **Data safety**: Never write `chat.jsonl` directly; only ST save functions — prevent chat corruption
 - **Compatibility**: Current ST release branch; declare `minimum_client_version`
 - **Security**: No secrets stored; reuse ST backend proxy
@@ -65,9 +65,10 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | UI extension only, no server plugin | Simpler install, official-repo eligible | — Pending |
-| Serial execution through native pipeline | Respects single-flight state; gets native post-processing (regex, reasoning, stop strings) for free | — Pending |
+| Generation route (R1 dry-run capture + own transport vs R2 native swipe + view restore) | Hard blockers a/c/d all passed cleanly at runtime (ST 1.19.0 live spike); b's only gap (squash ON) matched the source prediction exactly, no other surprises | Chosen: R1 (see .planning/phases/01-route-verification-spike/SPIKE-REPORT.md; a: PASS, b: PASS w/ documented squash-ON gap, c: PASS, d: PASS, e: not achievable (documented), f: policies confirmed) |
+| Serial execution: dry-run capture + own transport (R1) | Respects single-flight state; post-processing comes from calling native cleanup helpers (`cleanUpMessage`, reasoning extraction) on the own-transport result, not from the native pipeline itself | Chosen: R1 (see Generation route decision above; SPIKE-REPORT.md) |
 | Stay put: never change displayed swipe | Reading must not be interrupted | — Pending |
-| Background generation, no streaming preview | Native swipe streaming would switch view | — Pending |
+| Background generation, no streaming preview | Own transport (R1) never streams into the visible message, so there is nothing to suppress — the view cannot change by construction | Chosen: R1 (SPIKE-REPORT.md) |
 | Context = normal swipe context at run time | Matches native behavior; invalidation rules cover staleness | — Pending |
 | Persist queue in `chat_metadata`; ask before resume on load | Survive refresh without surprise API spend | — Pending |
 | Manual generation pauses queue | User actions take priority; resume if target valid | — Pending |

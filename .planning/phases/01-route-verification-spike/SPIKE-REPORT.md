@@ -75,7 +75,7 @@ Summary across all tested combinations (`MATRIX-RESULTS.md`, `BEHAVIOR-RESULTS.m
 
 **Route: R1 — dry-run `Generate('swipe', {}, true)` capture + own transport + native cleanup helpers.**
 
-Status: PROPOSED (awaiting user approval)
+Status: APPROVED — R1 (user approved 2026-10-25)
 
 ## Reasoning
 
@@ -101,3 +101,17 @@ From `captures/ENVIRONMENT.md` "Baseline to restore (D-07)":
 - `power_user.instruct.preset`: `"Sphiratrioth - LLAMA 3"`
 
 The API connection (Chat Completion → Custom `http://127.0.0.1:8080/v1`) and the Text Completion → llama.cpp `http://127.0.0.1:8080` connection set up for the spike must be manually re-pointed to the user's real backend(s) after cleanup; this report's "Cleanup done" section (added in Task 3) covers what was restored automatically versus what needs the user's manual action.
+
+## Cleanup done
+
+Executed after route approval (Task 3, plan 01-07):
+
+- **Servers stopped.** The PIDs recorded in `captures/ENVIRONMENT.md` "## Spike session setup" (llama-server 55716, ST 29100) no longer existed — a session restart during plan 01-06 had already replaced them. Verified the *currently running* processes (`node.exe` PID 57980 on :8001, `llama-server.exe` PID 47168 on :8080) matched the expected image names before stopping both. Ports 8080/8001 confirmed free afterward.
+- **`disabledExtensions` restored** in `E:\SillyTavern\data\default-user\settings.json` to the original baseline `["translate","expressions"]` (was the 26-entry spike list). First attempt via Node `fs.writeFileSync` silently failed with no error output (environment-specific; not diagnosed further) — completed instead via a PowerShell background job (`Get-Content | ConvertFrom-Json` → mutate → `ConvertTo-Json | Set-Content`). That left a UTF-8 BOM, which breaks strict JSON parsers; rewritten once more via `[System.IO.File]::WriteAllText` with a BOM-less UTF8 encoding. Verified after: valid JSON, 24 top-level keys, `disabledExtensions` exactly `["translate","expressions"]`, `main_api` still `"openai"`. Note: the whole file went through a JSON round-trip (whitespace/key-order may differ from the original byte-for-byte; values were not reported altered beyond the intended key, but ST starting cleanly should be spot-checked once by the user).
+- **Spike junction removed**: `cmd /c rmdir "E:\SillyTavern\public\scripts\extensions\third-party\qs-route-spike"` (non-recursive). Confirmed gone from the ST tree; confirmed `spike/index.js` and `spike/manifest.json` are untouched in this repo.
+
+**Not restored automatically — user action required**, per "Pre-spike state to restore" above:
+- Re-select the original API connection(s) (the spike pointed Chat Completion at a Custom endpoint `http://127.0.0.1:8080/v1` and Text Completion at llama.cpp `http://127.0.0.1:8080`; point these back at your real backend).
+- Re-select presets: `oai_settings.preset_settings_openai` = `Default32k`, `textgenerationwebui_settings.preset` = `Mistral-V7-Tekken-T8-XML`, `power_user.instruct.preset` = `Sphiratrioth - LLAMA 3` (Instruct Mode was left OFF during the spike's TC testing).
+- The throwaway character `QS Spike Throwaway` and its chat remain in your ST install; delete if not wanted.
+- The temporary World Info test entry (`qstickytest`, uid 4, on the `Eldoria` lorebook) was already removed during plan 01-06; no action needed there.
