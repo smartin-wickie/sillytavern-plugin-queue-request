@@ -9,6 +9,8 @@ import {
     sendOpenAIRequest,
     oai_settings,
     extractReasoningFromData,
+    extensionNames,
+    getExtensionManifest,
     eventSource,
     event_types,
 } from './st-imports.js';
@@ -33,6 +35,7 @@ const LOG_EVENTS = [
 const state = {
     ownController: null,
     lastCapture: null,
+    notes: {},
 };
 
 const ctx = () => SillyTavern.getContext();
@@ -315,10 +318,107 @@ async function send({ label, holdForAbort = false } = {}) {
     return { shape: result.shape, cleanedLength: result.cleanedLength, aborted, snapshotEqual: equal.all };
 }
 
+/** Abort only the spike's own request. Never touches ST's native stop path. */
+async function abortOwn() {
+    guard();
+    if (!state.ownController) throw fail(new Error('no own request in flight'));
+    state.ownController.abort();
+    return { aborted: state.ownController.signal.aborted };
+}
+
+/** One-shot listener that records the prompt of the next non-dry (native) generation. */
+async function armNative({ label } = {}) {
+    guard();
+    const once = (data, dryRun) => {
+        if (dryRun) return;
+        eventSource.removeListener(event_types.GENERATE_AFTER_DATA, once);
+        dump(fileName('native', label), structuredClone(data)).catch(fail);
+    };
+    eventSource.makeLast(event_types.GENERATE_AFTER_DATA, once);
+    return { armed: true, file: fileName('native', label) };
+}
+
+/**
+ * Start a held dry-run capture and return immediately. The hold window lets the operator send a manual
+ * message mid-capture; the outcome lands in window.qsSpike.pending and an overlap dump.
+ */
+async function overlap({ withSignal = true, holdMs = 5000 } = {}) {
+    guard();
+    const label = withSignal ? 'overlap-signal' : 'overlap-nosignal';
+    const run = (async () => {
+        let result = null;
+        let error = null;
+        try {
+            result = await capture({ label, holdMs, withSignal });
+        } catch (err) {
+            error = String(err?.message ?? err);
+            fail(err);
+        }
+        const c = ctx();
+        const last = c.chat[c.chat.length - 1] ?? {};
+        const stopBtn = document.querySelector('#mes_stop');
+        const report = {
+            withSignal,
+            holdMs,
+            result,
+            error,
+            isGenerating: isGenerating(),
+            swipeState: c.swipe?.state?.() ?? null,
+            mesStopHidden: stopBtn ? getComputedStyle(stopBtn).display === 'none' : null,
+            nativeGenStarted: last.gen_started ?? null,
+            nativeGenFinished: last.gen_finished ?? null,
+            nativeStopWorked: null,
+        };
+        state.notes.overlapReport = report;
+        await dump(fileName('overlap', label), report);
+        return report;
+    })();
+    window.qsSpike.pending = run;
+    return { started: true, label, holdMs };
+}
+
+async function status() {
+    const c = guard();
+    let version = null;
+    try {
+        const res = await fetch('/version', { method: 'POST', headers: c.getRequestHeaders() });
+        if (res.ok) version = await res.json();
+    } catch (err) {
+        fail(err);
+    }
+    const pu = c.powerUserSettings ?? {};
+    return {
+        version,
+        mainApi: c.mainApi,
+        streaming: isStreamingEnabled(),
+        auto_swipe: pu.auto_swipe,
+        auto_swipe_minimum_length: pu.auto_swipe_minimum_length,
+        auto_swipe_blacklist: pu.auto_swipe_blacklist,
+        auto_swipe_blacklist_threshold: pu.auto_swipe_blacklist_threshold,
+        interceptors: extensionNames.map((name) => {
+            const fn = getExtensionManifest(name)?.generate_interceptor;
+            return { name, fn: fn ?? null, loaded: fn ? typeof globalThis[fn] === 'function' : false };
+        }).filter((e) => e.fn),
+    };
+}
+
+async function note(key, value) {
+    guard();
+    state.notes[key] = value;
+    await dump('qs-notes.json', state.notes);
+    return state.notes;
+}
+
 export async function init() {
     const api = {
         capture,
         send,
+        abortOwn,
+        armNative,
+        overlap,
+        status,
+        note,
+        pending: null,
         snapshot: async () => {
             guard();
             const snap = snapshot();
