@@ -47,7 +47,7 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 
 - Design docs: `.planning/01-architecture-analysis.md` (ST extension anatomy, swipe data model, single-flight constraint, options A/B/C) and `.planning/02-requirements-draft.md` (FR/NFR draft, decisions D1–D4).
 - Many ST internals in those docs are marked `[Recall]`, not read from source. Must verify against ST `public/script.js` (release branch) before relying on them: `swipe_right` guards, `is_send_press`, whether generation can target a non-visible swipe / run without writing into `mes`, prompt hooks (`GENERATE_AFTER_DATA`, `CHAT_COMPLETION_PROMPT_READY`), event names (`MESSAGE_SWIPED`, `GENERATION_STOPPED`, `MESSAGE_EDITED`, `MESSAGE_DELETED`, `CHAT_CHANGED`), `saveChatConditional`.
-- Key technical tension: native `Generate('swipe')` pushes a new slot, switches `swipe_id`, and streams into the visible message. "Stay put + background, no preview" needs another route — candidates: quiet/background generation via context `generate`/`generateQuietPrompt`/`generateRaw` reproducing swipe context, or native swipe with suppressed rendering and restored view. Choice must come out of source verification.
+- Key technical tension (resolved in Phase 1): native `Generate('swipe')` pushes a new slot, switches `swipe_id`, and streams into the visible message. Phase 1's live spike against ST 1.19.0 chose R1 — dry-run `Generate('swipe', {}, true)` capture + own transport + native cleanup helpers — over R2 (native swipe + view restore). See the Generation route Key Decision below and `.planning/phases/01-route-verification-spike/SPIKE-REPORT.md`.
 - Reference extensions to study: Deep-Swipe (Rurijian), SillyTavern-UserSwipes (Bartasx4), Prompt Inspector (known conflict with Deep-Swipe over generation state).
 - Prompt caching: serial back-to-back identical prompts are cache-friendly.
 
@@ -96,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-25 after initialization*
+*Last updated: 2026-10-25 after Phase 1 (Route Verification Spike) completion*
