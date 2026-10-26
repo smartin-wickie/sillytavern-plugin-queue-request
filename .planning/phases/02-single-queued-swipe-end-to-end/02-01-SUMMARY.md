@@ -144,3 +144,7 @@ None — no external service configuration required. The one remaining requireme
 ---
 *Phase: 02-single-queued-swipe-end-to-end*
 *Completed: 2026-10-26 (Tasks 1-3; Task 4 checkpoint pending)*
+
+## Self-Check: PASSED
+
+All 7 created files confirmed present on disk (`manifest.json`, `package.json`, `index.js`, `style.css`, `src/st-bridge.js`, `src/appender.js`, `src/ui.js`). All 4 commits (`62c11bb`, `6b7d1a3`, `fa186a1`, `284bf36`) confirmed present in `git log --oneline --all`.
