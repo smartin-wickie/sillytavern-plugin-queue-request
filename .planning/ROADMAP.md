@@ -40,7 +40,13 @@ A SillyTavern UI extension that queues swipe generations for the latest AI messa
   3. On each completion the pager total `k/total` grows by one live with scroll position intact, the displayed swipe does not change (unless auto-jump is enabled and the user is on the newest swipe), and the new swipe has the same post-processing as a native swipe on both Chat Completion and Text Completion
   4. If the user switches chats or the target changes mid-generation, the result is discarded rather than written to the wrong chat; a failed or empty generation shows a non-modal toast and leaves the chat unchanged, and the queue continues with remaining items
   5. After each append the chat is saved through ST save functions, and `swipes[]` and `swipe_info[]` have equal length with no holes
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 02-01-PLAN.md — Walking skeleton: scaffold, bridge, swipe appender, stub control+append
+- [ ] 02-02-PLAN.md — Queue Store + Fingerprint + Runner (serial multi-item queue, stub generator)
+- [ ] 02-03-PLAN.md — Real Generation Adapter (dry-run capture + own transport + native cleanup)
+- [ ] 02-04-PLAN.md — Event Guard (native-generation pause/wake) + GUARD-04/05 hardening
+- [ ] 02-05-PLAN.md — Badge/disable-at-max UI polish + final comprehensive smoke test
 **UI hint**: yes
 
 ### Phase 3: Full Queue Control & UI
@@ -86,7 +92,7 @@ A SillyTavern UI extension that queues swipe generations for the latest AI messa
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
-| 2. Single Queued Swipe End-to-End | 0/TBD | Not started | - |
+| 2. Single Queued Swipe End-to-End | 0/5 | Not started | - |
 | 3. Full Queue Control & UI | 0/TBD | Not started | - |
 | 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
