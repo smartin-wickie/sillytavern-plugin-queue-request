@@ -1,10 +1,11 @@
 ---
 phase: 02-single-queued-swipe-end-to-end
 verified: 2026-10-26T14:46:02Z
-status: human_needed
+status: passed
 score: 19/20 must-haves verified
 has_blocking_gaps: false
 overrides_applied: 0
+human_override: "User approved phase close-out 2026-10-26 (UI visibility + swipe-behavior non-regression confirmed live). The one open human_verification item (Text Completion live generation) was explicitly declined for now and parked as a known, non-blocking gap rather than tested — code is implemented and unit-tested, just never exercised against a real Text Completion server."
 human_verification:
   - test: "Queue a swipe against a live Text Completion backend (e.g. koboldcpp/llama.cpp/text-generation-webui connection profile) and confirm the generated swipe appears with native-equivalent post-processing, using the same no-extra-configuration flow verified for Chat Completion."
     expected: "A new swipe is appended with real generated text (not empty/stub), stop-strings/regex trimming applied, no streaming into the visible message, Send/swipe controls stay usable — matching the Chat Completion behavior already live-verified in 02-03/02-05."
