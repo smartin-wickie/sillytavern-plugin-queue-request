@@ -101,6 +101,13 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     listeners.delete(cb);
   }
 
+  // Exposes the same cap add() enforces (effectiveCap(), not the raw configured maxQueueSize)
+  // so callers computing a disabled/full-queue UI state check against the exact same number
+  // add() uses, rather than re-deriving a second value that could drift from it.
+  function getMaxQueueSize() {
+    return effectiveCap();
+  }
+
   return {
     add,
     peekNext,
@@ -112,5 +119,6 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     getItems,
     onChange,
     offChange,
+    getMaxQueueSize,
   };
 }
