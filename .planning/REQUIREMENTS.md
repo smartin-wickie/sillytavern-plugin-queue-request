@@ -116,6 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPIKE-03 | Phase 1 | Done |
 | SPIKE-04 | Phase 1 | Done |
 | QUEUE-01 | Phase 2 | Pending |
+| QUEUE-02 | Phase 2 | Pending |
 | QUEUE-08 | Phase 2 | Pending |
 | GEN-01 | Phase 2 | Pending |
 | GEN-02 | Phase 2 | Pending |
@@ -133,7 +134,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-01 | Phase 2 | Pending |
 | SET-02 | Phase 2 | Pending |
 | COMP-03 | Phase 2 | Pending |
-| QUEUE-02 | Phase 3 | Pending |
 | QUEUE-03 | Phase 3 | Pending |
 | QUEUE-04 | Phase 3 | Pending |
 | QUEUE-05 | Phase 3 | Pending |

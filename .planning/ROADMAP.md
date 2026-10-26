@@ -30,30 +30,29 @@ A SillyTavern UI extension that queues swipe generations for the latest AI messa
 **Plans**: TBD
 
 ### Phase 2: Single Queued Swipe End-to-End
-**Goal:** User clicks a control on the latest AI message and one extra swipe is generated in the background and appears as a normal swipe page without disturbing reading
+**Goal:** User clicks a control on the latest AI message to queue swipe requests (one at a time, up to the max), each generates in the background and appears as a normal swipe page without disturbing reading
 **Mode:** mvp
 **Depends on**: Phase 1
-**Requirements**: QUEUE-01, QUEUE-08, GEN-01, GEN-02, GEN-03, GEN-04, GEN-05, GEN-06, SWIPE-01, SWIPE-02, SWIPE-03, SWIPE-04, SWIPE-05, GUARD-04, GUARD-05, UI-01, SET-02, COMP-03
+**Requirements**: QUEUE-01, QUEUE-02, QUEUE-08, GEN-01, GEN-02, GEN-03, GEN-04, GEN-05, GEN-06, SWIPE-01, SWIPE-02, SWIPE-03, SWIPE-04, SWIPE-05, GUARD-04, GUARD-05, UI-01, SET-02, COMP-03
 **Success Criteria** (what must be TRUE):
   1. User installs the extension from `manifest.json` (minimum_client_version 1.19.0), sees a control next to the swipe arrows on the latest AI message, and does not see it in group chats or chats with no AI message
-  2. After clicking the control, the visible message does not stream or change, swipe arrows and Send stay usable, and a badge shows a running indicator
-  3. On completion the pager total `k/total` grows by one live with scroll position intact, the displayed swipe does not change (unless auto-jump is enabled and the user is on the newest swipe), and the new swipe has the same post-processing as a native swipe on both Chat Completion and Text Completion
-  4. If the user switches chats or the target changes mid-generation, the result is discarded rather than written to the wrong chat; a failed or empty generation shows a non-modal toast and leaves the chat unchanged
-  5. After the append the chat is saved through ST save functions, and `swipes[]` and `swipe_info[]` have equal length with no holes
+  2. User can click the control repeatedly to add more requests while the queue is running, up to the configured max (default 5, hard max 20); items run strictly one after another, the visible message does not stream or change, swipe arrows and Send stay usable, and a badge shows pending/running count
+  3. On each completion the pager total `k/total` grows by one live with scroll position intact, the displayed swipe does not change (unless auto-jump is enabled and the user is on the newest swipe), and the new swipe has the same post-processing as a native swipe on both Chat Completion and Text Completion
+  4. If the user switches chats or the target changes mid-generation, the result is discarded rather than written to the wrong chat; a failed or empty generation shows a non-modal toast and leaves the chat unchanged, and the queue continues with remaining items
+  5. After each append the chat is saved through ST save functions, and `swipes[]` and `swipe_info[]` have equal length with no holes
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 3: Full Queue Control & UI
-**Goal:** User can line up several swipes, keep adding while it runs, and see and control the queue from the badge, progress bar, slash commands, and wand menu
+**Goal:** User can see and control the queue from the badge, progress bar, slash commands, and wand menu
 **Mode:** mvp
 **Depends on**: Phase 2
-**Requirements**: QUEUE-02, QUEUE-03, QUEUE-04, QUEUE-05, QUEUE-06, QUEUE-07, UI-02, UI-03, SET-01
+**Requirements**: QUEUE-03, QUEUE-04, QUEUE-05, QUEUE-06, QUEUE-07, UI-02, UI-03, SET-01
 **Success Criteria** (what must be TRUE):
-  1. User can add requests while the queue is running, up to the configured max (default 5, hard max 20), and items run strictly one after another
-  2. `/queueswipe [count]` queues swipes with the count clamped to remaining capacity and feedback shown; `/queuecancel` clears all and `/queuestatus` reports pending/running
-  3. User can cancel the running item or all items from the badge, open a per-item list to cancel individual pending items, and queue or cancel from the wand menu
-  4. A progress bar at the top of chat shows queue progress with a stop control, and multi-item completion/error toasts are coalesced instead of one per item
-  5. User can change enable, max queue, auto-jump, notification style, and circuit-breaker threshold in the Extensions drawer settings panel and the values take effect
+  1. `/queueswipe [count]` queues swipes with the count clamped to remaining capacity and feedback shown; `/queuecancel` clears all and `/queuestatus` reports pending/running
+  2. User can cancel the running item or all items from the badge, open a per-item list to cancel individual pending items, and queue or cancel from the wand menu
+  3. A progress bar at the top of chat shows queue progress with a stop control, and multi-item completion/error toasts are coalesced instead of one per item
+  4. User can change enable, max queue, auto-jump, notification style, and circuit-breaker threshold in the Extensions drawer settings panel and the values take effect
 **Plans**: TBD
 **UI hint**: yes
 
