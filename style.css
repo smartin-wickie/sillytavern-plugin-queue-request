@@ -1,0 +1,4 @@
+.qs-queue-control {
+  cursor: pointer;
+  /* TODO(Task 4): finalize sizing/disabled-state values after live measurement */
+}
