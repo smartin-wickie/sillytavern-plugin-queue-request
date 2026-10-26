@@ -97,7 +97,15 @@ export function createRunner({ bridge, store, generate, append }) {
     }
 
     const mesId = item.fingerprint.mesId;
-    const appended = await flushAppend(mesId, result.text, result.meta);
+    let appended;
+    try {
+      appended = await flushAppend(mesId, result.text, result.meta);
+    } catch (err) {
+      const reason = extractReason(err);
+      store.drop(item.id, reason);
+      notifyFailed(item.id, reason);
+      return true;
+    }
     if (appended === 'ok') {
       store.markDone(item.id);
     } else if (appended === 'stale') {

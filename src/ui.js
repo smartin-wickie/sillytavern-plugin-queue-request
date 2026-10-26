@@ -24,6 +24,13 @@ function injectControl(store, runner) {
   const lastMes = document.querySelector('.last_mes');
   const swipeRightEl = lastMes?.querySelector('.swipe_right');
 
+  // A message stops being `.last_mes` on every subsequent chat turn, but its previously-injected
+  // control is never otherwise removed (it isn't ST's DOM to manage). Without this sweep, orphaned
+  // controls accumulate and the unscoped lookups below start targeting the wrong, stale element.
+  document.querySelectorAll(`.${CONTROL_CLASS}`).forEach((el) => {
+    if (el !== lastMes?.querySelector(`.${CONTROL_CLASS}`)) el.remove();
+  });
+
   if (!canQueue()) {
     lastMes?.querySelector(`.${CONTROL_CLASS}`)?.remove();
     return;
@@ -45,12 +52,11 @@ function injectControl(store, runner) {
   renderQueueState(store);
 }
 
-// Re-render the badge and disabled/tooltip state onto whichever `.qs-queue-control` element is
-// currently in the DOM. Looked up fresh every call (never a cached reference) because
-// injectControl() recreates the control element on CHARACTER_MESSAGE_RENDERED/MESSAGE_SWIPED/
-// CHAT_CHANGED — a stale element reference would silently stop updating.
+// Re-render the badge and disabled/tooltip state onto the control inside the current `.last_mes`
+// — never a document-wide lookup, which would match an orphaned control still sitting on an
+// earlier message first (document order). Looked up fresh every call, never a cached reference.
 function renderQueueState(store) {
-  const control = document.querySelector(`.${CONTROL_CLASS}`);
+  const control = document.querySelector('.last_mes')?.querySelector(`.${CONTROL_CLASS}`);
   if (!control) return;
   renderBadge(control, store);
   renderDisabledState(control, store);

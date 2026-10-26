@@ -39,7 +39,8 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
   // The hard ceiling binds independently of whatever maxQueueSize the caller configured
   // (T-02-02-03) — a future settings bug (Phase 3 SET-01) cannot grow the effective cap past 20.
   function effectiveCap() {
-    return Math.min(maxQueueSize, HARD_MAX_QUEUE);
+    const configured = Number.isFinite(maxQueueSize) ? maxQueueSize : DEFAULT_MAX_QUEUE;
+    return Math.min(configured, HARD_MAX_QUEUE);
   }
 
   function findById(id) {

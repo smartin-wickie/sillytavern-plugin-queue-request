@@ -25,7 +25,9 @@ export async function appendSwipe(mesId, text, meta) {
       send_date: m.send_date,
       gen_started: m.gen_started,
       gen_finished: m.gen_finished,
-      extra: structuredClone(m.extra),
+      // JSON round-trip, not structuredClone — `extra` is ST-originated, extension-writable
+      // data that can carry a non-cloneable value (same rationale as adapter.js's jsonClone).
+      extra: JSON.parse(JSON.stringify(m.extra ?? {})),
     }];
   } else {
     bridge.ensureSwipes(m);
