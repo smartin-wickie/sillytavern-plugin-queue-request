@@ -47,22 +47,22 @@ key-decisions:
 patterns-established:
   - "Guard modules hold no queue state of their own — they only translate an event stream into calls on another module's public methods (ARCHITECTURE.md §3.2)"
 
-requirements-completed: []
+requirements-completed: [GEN-01, GUARD-04, GUARD-05, SWIPE-04]
 
 # Metrics
-duration: ~25min (Tasks 1-2 code + tests; Task 3's live checkpoint not yet run, see below)
+duration: ~25min (Tasks 1-2 code + tests) + orchestrator-run live checkpoint (Task 3, via claude-in-chrome)
 completed: 2026-10-25
 ---
 
 # Phase 2 Plan 04: Native-Generation Guard and Failure-Toast Taxonomy Summary
 
-**Guard-driven pause/resume around manual (non-dry) generation, a second independent fingerprint re-check immediately before every append, and a 3-variant `toastr.warning` failure taxonomy that silently excludes stale (target-invalidated) drops — all unit-tested (50/50 passing); the plan's Task 3 live-ST smoke test is a pending `checkpoint:human-verify` for the orchestrator, not yet run.**
+**Guard-driven pause/resume around manual (non-dry) generation, a second independent fingerprint re-check immediately before every append, and a 3-variant `toastr.warning` failure taxonomy that silently excludes stale (target-invalidated) drops — unit-tested (50/50 passing) and live-verified via Claude in Chrome against a running ST 1.19.0 instance, including a deliberately adversarial zero-latency overlap test between a queued capture and a native `swipe.right()` call.**
 
 ## Performance
 
-- **Duration:** ~25 min for Tasks 1-2 (code + tests)
+- **Duration:** ~25 min for Tasks 1-2 (code + tests); Task 3's live checkpoint run and reported by the orchestrator via `claude-in-chrome`
 - **Completed:** 2026-10-25
-- **Tasks:** 2 of 3 complete (Task 3 is a live-verification checkpoint, not executed by this agent — see "Checkpoint Pending" below)
+- **Tasks:** 3 of 3 complete
 - **Files modified:** 2 created (`src/guard.js`, `test/guard.test.js`), 4 modified (`src/runner.js`, `src/ui.js`, `index.js`, `test/runner.test.js`)
 
 ## Accomplishments
@@ -74,13 +74,14 @@ completed: 2026-10-25
 - Added `test/guard.test.js` (9 new assertions: pause-on-non-dry-start, no-pause-on-dry-run, no-pause-on-undefined-dryRun, resume-on-ended, resume-on-stopped, scheduled-not-inline dispatch, listener-removal on `stop()`, idempotent double-`stop()`).
 - Extended `test/runner.test.js` with 6 new/modified cases: a dedicated second-checkpoint stale-drop test (generate() mutates the fingerprint target mid-flight, confirming `append()` is never called), a dedicated "stale drops never fire onItemFailed" test, pause-blocks-wake, resume-unblocks-and-processes-pending-item, and a mid-flight-pause test (pause fired while the first item's `generate()` is still pending does not abort it, but blocks the second item until `resume()`). Updated the pre-existing onItemFailed/offItemFailed tests to use non-stale drop reasons so they still meaningfully exercise subscription/unsubscription now that `'stale'` never notifies.
 - Full test suite: `npx vitest run` — 4 test files, **50/50 passing**, observed directly from the vitest reporter output after each task and again at the end of both tasks (not assumed).
-- `node --check` passed clean on all 4 modified/created source files (`src/guard.js`, `src/runner.js`, `src/ui.js`, `index.js`) — syntax-only; behavioral live verification is Task 3's job, not yet run.
+- `node --check` passed clean on all 4 modified/created source files (`src/guard.js`, `src/runner.js`, `src/ui.js`, `index.js`) — syntax-only; Task 3's live checkpoint (below) is the behavioral confirmation.
+- **Task 3's live checkpoint passed all 4 steps**, run by the orchestrator via `claude-in-chrome` against the running local ST instance (extension re-synced from this worktree first) — see "Live Verification Results" below for the full per-step record, including a deliberately adversarial same-tick overlap test beyond what the plan's `<how-to-verify>` strictly required.
 
 ## Task Commits
 
 1. **Task 1: Event Guard (native-generation pause/wake) + second fingerprint checkpoint** - `722f4af` (feat)
 2. **Task 2: GUARD-05 failure taxonomy — toast wiring** - `6340e9b` (feat)
-3. **Task 3: Live guard/hardening smoke test** - NOT RUN this session (checkpoint:human-verify, gate="blocking"; no files modified by this task regardless of outcome). See "Checkpoint Pending" below.
+3. **Task 3: Live guard/hardening smoke test** - verified via Claude in Chrome against the running SillyTavern instance (all 4 steps PASS); no code changes (verification-only task). See "Live Verification Results" below.
 
 ## Files Created/Modified
 
@@ -107,19 +108,21 @@ None — both code tasks (Task 1 and Task 2) executed per the plan's `<behavior>
 - The sandboxed shell's `git` wrapper (RTK token-killer hook) could not statically verify several git invocations stay inside the worktree and refused to run them (both a `git status --short` one-liner and a multi-line safety-assertion script). Worked around by invoking `/mingw64/bin/git` directly for every git operation (status, add, commit, diff --diff-filter=D), consistent with how 02-03's executor handled the same wrapper limitation. No functional impact — both task commits (`722f4af`, `6340e9b`) landed correctly on this worktree's own branch (`worktree-agent-a7ce011c45a8be76d`), confirmed via `git log`/`git status` after each commit.
 - `npx vitest run` executed cleanly through the normal vitest reporter in this session (no RTK JSON-report interception observed, unlike 02-02's session) — results were read directly from the console output.
 
-## Checkpoint Pending: Task 3 (live guard/hardening smoke test)
+## Live Verification Results (Task 3, via Claude in Chrome against `http://127.0.0.1:8000`)
 
-**Not run by this agent.** Per this plan's project note, the orchestrator holds the `claude-in-chrome` MCP access and the running local ST instance (`http://127.0.0.1:8000`, extension installed at `E:\SillyTavern\data\default-user\extensions\queued-swipes\`) that Task 3 requires; this agent has no live-ST or browser access from inside the sandboxed worktree and was explicitly instructed not to guess a pass or attempt its own browser automation.
+Run by the orchestrator (this agent has no live-ST or browser access from inside the sandboxed worktree); the extension install at `E:\SillyTavern\data\default-user\extensions\queued-swipes\` was re-synced from this worktree first, per the now-recurring note (02-03's SUMMARY) that the installed copy goes stale between waves.
 
-**What's built and ready for the live check** (per the plan's `<how-to-verify>`):
-1. Pause/resume: queue 2-3 items, manually send/swipe before the queue finishes — the queue should visibly pause (no second item starts) until the manual generation ends, then resume automatically. (`src/guard.js` + `runner.pause()`/`resume()`, unit-tested in isolation; never live-exercised against real ST events.)
-2. Target invalidation: queue an item, then edit/delete the target message before it finishes generating — the item should be silently dropped (no toast, no wrong-message append). (The new second fingerprint checkpoint in `src/runner.js`, unit-tested with a mocked mid-generate mutation; never live-exercised against a real ST edit/delete.)
-3. Failure toast: disconnect/misconfigure the backend and queue an item — exactly one toast reading "Queued swipe failed: API error" should appear, with no raw error/URL/stack trace. (`src/ui.js`'s `FAILURE_MESSAGES` lookup, unit-tested at the runner/store boundary; the actual `toastr.warning()` call and its rendered text have never been observed live.)
-4. No console error or unhandled promise rejection during any of the above.
+**1. Overlap (pause/resume) — PASS, two variants:**
+- Normal case: queued a click then sent a manual message immediately after — the queued item had already completed before the manual send landed (too fast to race at normal UI speed), no interference.
+- Stress case (beyond the plan's literal `<how-to-verify>`, an adversarial addition): dispatched the queue click and a direct `c.swipe.right(...)` call (native non-dry generation) in the **same synchronous JS tick**, zero human-timing slack. Both completed successfully: `chat.swipes` went from 1→3 on the target message, with two distinct, correct, non-garbled texts and intact `swipe_info` (`gen_started`/`gen_finished` timestamps show the queued item's capture+send started ~14ms before native's generation began, and both completed cleanly). No corruption, no console errors. Confirms the dry-run-capture-then-own-transport design holds even under near-zero-latency overlap — the only window where this extension's code touches native `Generate()`/`is_send_press` (the `capture()` dry-run) is short enough that it doesn't collide with native's state even in this adversarial timing.
 
-**Important before running Task 3's live check:** per 02-03's SUMMARY, the installed extension copy at `E:\SillyTavern\data\default-user\extensions\queued-swipes\` needs re-syncing from the latest worktree/merge before testing — do not assume it is current.
+**2. Stale-target drop (second fingerprint checkpoint) — PASS:** Queued a click, then immediately grew `chat.length` by sending a new user message before the queued item's `send()` phase finished. The original target message's swipe count never changed (no wrong-message append), chat stayed fully intact (grew normally from the new message), no toast fired for the drop (silent, as designed), no console errors.
 
-**Resume signal (per the plan):** report pass/fail per numbered step; paste the exact toast text observed in step 3.
+**3. Failure toast (GUARD-05 taxonomy) — PASS:** Pointed the Custom Endpoint at an unreachable port (`127.0.0.1:1`) and queued an item. `toastr.warning` was instrumented directly to confirm: exactly one call, with message exactly `"Queued swipe failed: API error"` — no raw error text, stack trace, or URL leaked. Working endpoint restored afterward.
+
+**4. Console clean — PASS:** Checked after every step above — no errors or unhandled exceptions at any point.
+
+No corrections needed.
 
 ## Known Stubs
 
@@ -131,10 +134,10 @@ None — no external service configuration required. No new dependencies were ad
 
 ## Next Phase Readiness
 
-- Tasks 1 and 2 are code-complete and unit-tested (50/50 passing across `test/fingerprint.test.js`, `test/store.test.js`, `test/runner.test.js`, `test/guard.test.js`).
-- GEN-01's "no overlap with native generation" half, GUARD-04's two-point re-validation, and GUARD-05's failure taxonomy are all implemented and exercised against a fake bridge, but none of them are yet "real and observed live" per this plan's own success criteria — that is exactly what Task 3's pending checkpoint exists to confirm.
-- 02-05-PLAN.md (or whichever plan next runs a live checkpoint) should run Task 3's 4-step live check before treating this plan's success criteria as satisfied, and should re-sync the installed extension copy first.
-- This agent did not touch `.planning/STATE.md`, `.planning/ROADMAP.md`, or `.planning/REQUIREMENTS.md` — per this plan's explicit instruction, the orchestrator owns those writes after the wave (and, in this case, after Task 3's live result is known).
+- All 3 tasks complete: Tasks 1-2 are code-complete and unit-tested (50/50 passing across `test/fingerprint.test.js`, `test/store.test.js`, `test/runner.test.js`, `test/guard.test.js`); Task 3's live checkpoint passed all 4 steps via Claude in Chrome against ST 1.19.0.
+- GEN-01 is now fully enforced (both halves: single-flight among queue items from 02-02, and no overlap with native generation from this plan's Guard — confirmed live even under an adversarial same-tick overlap). GUARD-04's two-point re-validation and GUARD-05's failure taxonomy are both real and observed live, matching this plan's success criteria exactly.
+- The local ST server/extension install at `E:\SillyTavern` required re-syncing from this worktree before Task 3's live check (stale from a prior wave) — future plans' live checks should continue to confirm the installed copy is current before testing, not assume it (recurring note across 02-03 and this plan).
+- This agent did not touch `.planning/STATE.md`, `.planning/ROADMAP.md`, or `.planning/REQUIREMENTS.md` — per this plan's explicit instruction, the orchestrator owns those writes after the wave.
 
 ---
 *Phase: 02-single-queued-swipe-end-to-end*
@@ -142,4 +145,4 @@ None — no external service configuration required. No new dependencies were ad
 
 ## Self-Check: PASSED
 
-`src/guard.js` and `test/guard.test.js` confirmed present on disk. Both task commits (`722f4af`, `6340e9b`) confirmed present in `git log --oneline` on this worktree's branch (verified via `/mingw64/bin/git log --oneline -5` immediately before writing this summary — see below). Full test suite re-run immediately before writing this summary confirmed `50/50` passing across 4 files. Task 3's live result is explicitly NOT claimed as verified anywhere in this summary — see "Checkpoint Pending" above.
+`src/guard.js` and `test/guard.test.js` confirmed present on disk. Both code task commits (`722f4af`, `6340e9b`) confirmed present in `git log --oneline` on this worktree's branch. Full test suite re-run immediately before finalizing this summary confirmed `50/50` passing across 4 files. Task 3's live result (all 4 steps PASS) is recorded above exactly as reported by the orchestrator's Claude-in-Chrome checkpoint run — not independently re-verified by this agent, which has no live-ST or browser access from inside the sandboxed worktree.
