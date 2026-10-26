@@ -59,7 +59,12 @@ Plans:
   2. User can cancel the running item or all items from the badge, open a per-item list to cancel individual pending items, and queue or cancel from the wand menu
   3. A progress bar at the top of chat shows queue progress with a stop control, and multi-item completion/error toasts are coalesced instead of one per item
   4. User can change enable, max queue, auto-jump, notification style, and circuit-breaker threshold in the Extensions drawer settings panel and the values take effect
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 03-01-PLAN.md — Runner abortRunning()/onItemDone() + shared cancelAll() + cancel dropdown anchored to the badge
+- [ ] 03-02-PLAN.md — Slash commands (/queueswipe, /queuecancel, /queuestatus) + wand menu entries
+- [ ] 03-03-PLAN.md — Top-of-chat progress bar + coalesced completion/error toasts
+- [ ] 03-04-PLAN.md — Settings panel (enable, max queue, auto-jump, notification style, circuit-breaker threshold), wired to take effect live
 **UI hint**: yes
 
 ### Phase 4: Lifecycle, Persistence & Spend Safety
@@ -93,6 +98,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
-| 3. Full Queue Control & UI | 0/TBD | Not started | - |
+| 3. Full Queue Control & UI | 0/4 | Not started | - |
 | 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
