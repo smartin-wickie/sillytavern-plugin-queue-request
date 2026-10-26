@@ -45,7 +45,7 @@ Plans:
 - [x] 02-01-PLAN.md — Walking skeleton: scaffold, bridge, swipe appender, stub control+append
 - [x] 02-02-PLAN.md — Queue Store + Fingerprint + Runner (serial multi-item queue, stub generator)
 - [x] 02-03-PLAN.md — Real Generation Adapter (dry-run capture + own transport + native cleanup)
-- [ ] 02-04-PLAN.md — Event Guard (native-generation pause/wake) + GUARD-04/05 hardening
+- [x] 02-04-PLAN.md — Event Guard (native-generation pause/wake) + GUARD-04/05 hardening
 - [ ] 02-05-PLAN.md — Badge/disable-at-max UI polish + final comprehensive smoke test
 **UI hint**: yes
 
@@ -92,7 +92,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
-| 2. Single Queued Swipe End-to-End | 3/6 | In Progress|  |
+| 2. Single Queued Swipe End-to-End | 4/6 | In Progress|  |
 | 3. Full Queue Control & UI | 0/TBD | Not started | - |
 | 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
