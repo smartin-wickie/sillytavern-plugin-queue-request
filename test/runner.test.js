@@ -209,6 +209,30 @@ describe('createRunner', () => {
     expect(onFailed).toHaveBeenCalledWith({ id: item.id, reason: 'stale' });
   });
 
+  it.each([
+    ['api', 'a thrown error from adapter.capture()/send(), normalized by the real generate() wrapper'],
+    ['empty', 'a resolved-but-unsuccessful adapter result where sent.aborted is false'],
+    ['cancelled', 'a resolved-but-unsuccessful adapter result where sent.aborted is true'],
+  ])('drops the item with reason %s and continues to the next item without throwing (%s)', async (reason) => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const failingItem = store.add(buildFingerprint(ctx, 0)).item;
+    const okItem = store.add(buildFingerprint(ctx, 0)).item;
+
+    const generate = vi.fn()
+      .mockResolvedValueOnce({ error: reason })
+      .mockResolvedValueOnce({ text: 'ok text', meta: {} });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+
+    await runner.wake();
+
+    expect(store.getItems().find((i) => i.id === failingItem.id)).toMatchObject({ status: 'failed', reason });
+    expect(store.getItems().find((i) => i.id === okItem.id)).toMatchObject({ status: 'done' });
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
   it('offItemFailed(cb) stops further notifications', async () => {
     const ctx = makeCtx();
     const bridge = makeBridge(ctx);

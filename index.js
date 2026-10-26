@@ -4,6 +4,7 @@ import { createStore } from './src/store.js';
 import { createRunner } from './src/runner.js';
 import { appendSwipe } from './src/appender.js';
 import { registerQueueControl } from './src/ui.js';
+import { capture, send, cleanAndExtract, isSuccessful } from './src/adapter.js';
 
 const MODULE_NAME = 'queuedSwipes';
 
@@ -11,13 +12,36 @@ const DEFAULT_SETTINGS = {
   maxQueueSize: 5,
 };
 
-// Stub generator for this plan only — 02-03-PLAN.md replaces this with the real Generation
-// Adapter (dry-run capture + own transport) without touching the Runner's control flow.
-async function stubGenerate() {
-  await new Promise((resolve) => setTimeout(resolve, 50));
+/**
+ * Real Generation Adapter-backed generator passed into createRunner(). Each item gets its own
+ * fresh AbortController (never reused across items), sequences capture -> send -> cleanAndExtract,
+ * and resolves a typed result per adapter.isSuccessful() — never throwing out of the happy path.
+ * A thrown error from capture()/send() (network failure, HTTP non-2xx) is normalized to
+ * { error: 'api' }; a resolved-but-unsuccessful result is { error: 'cancelled' } when the send
+ * was aborted, otherwise { error: 'empty' }.
+ */
+async function generate() {
+  const started = new Date();
+  const ownController = new AbortController();
+  const { signal } = ownController;
+
+  let sent;
+  try {
+    const captured = await capture({ signal });
+    sent = await send(captured, signal);
+  } catch (err) {
+    return { error: 'api' };
+  }
+
+  const cleaned = cleanAndExtract(sent);
+
+  if (!isSuccessful({ text: cleaned.text, aborted: sent.aborted })) {
+    return { error: sent.aborted ? 'cancelled' : 'empty' };
+  }
+
   return {
-    text: '[queued-swipes stub placeholder — replaced by real generation in 02-03-PLAN.md]',
-    meta: { started: new Date(), reasoning: '', signature: null },
+    text: cleaned.text,
+    meta: { started, reasoning: cleaned.reasoning, signature: cleaned.signature },
   };
 }
 
@@ -47,7 +71,7 @@ export async function init() {
 
   // Exactly one store/runner instance per loaded chat, not one per click.
   const store = createStore({ bridge, maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize });
-  const runner = createRunner({ bridge, store, generate: stubGenerate, append: appendSwipe });
+  const runner = createRunner({ bridge, store, generate, append: appendSwipe });
 
   registerQueueControl({ store, runner });
 }
