@@ -1,5 +1,5 @@
 import { ctx, canQueue, eventSource, event_types } from './st-bridge.js';
-import { appendSwipe } from './appender.js';
+import { buildFingerprint } from './fingerprint.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
 
@@ -8,7 +8,7 @@ const CONTROL_CLASS = 'qs-queue-control';
  * per the QUEUE-08 visibility gate. Re-created per render rather than delegated, so a direct
  * click listener on the fresh element is correct and avoids double-binding.
  */
-function injectControl() {
+function injectControl(store, runner) {
   const lastMes = document.querySelector('.last_mes');
   const swipeRightEl = lastMes?.querySelector('.swipe_right');
 
@@ -25,25 +25,30 @@ function injectControl() {
   control.className = CONTROL_CLASS;
   control.title = 'Queue a swipe';
   control.innerHTML = '<i class="fa-solid fa-clock"></i>';
-  control.addEventListener('click', onControlClick);
+  control.addEventListener('click', () => onControlClick(store, runner));
 
   swipeRightEl.insertAdjacentElement('afterend', control);
 }
 
-// Stub for this plan only — 02-02-PLAN.md replaces this body with store.add() + runner.wake().
-async function onControlClick() {
+// Enqueue a swipe request for the latest message and wake the runner. A full queue (store.add()
+// returning { ok: false }) is silently ignored for now — the disabled-state UI/tooltip for a
+// full queue is 02-05-PLAN.md's job, not this plan's.
+function onControlClick(store, runner) {
   const c = ctx();
-  await appendSwipe(c.chat.length - 1, '[queued-swipes stub placeholder — replaced by real generation in 02-03-PLAN.md]', {
-    started: new Date(),
-    reasoning: '',
-    signature: null,
-  });
+  const target = buildFingerprint(c, c.chat.length - 1);
+  const result = store.add(target);
+  if (!result.ok) return;
+  runner.wake();
 }
 
-/** Register the control and its re-render triggers. Call once from index.js's init(). */
-export function registerQueueControl() {
-  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, injectControl);
-  eventSource.on(event_types.MESSAGE_SWIPED, injectControl);
-  eventSource.on(event_types.CHAT_CHANGED, injectControl);
-  eventSource.on(event_types.APP_READY, injectControl);
+/**
+ * Register the control and its re-render triggers. Call once from index.js's init(), passing
+ * the single store/runner instance for the loaded chat.
+ */
+export function registerQueueControl({ store, runner }) {
+  const render = () => injectControl(store, runner);
+  eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, render);
+  eventSource.on(event_types.MESSAGE_SWIPED, render);
+  eventSource.on(event_types.CHAT_CHANGED, render);
+  eventSource.on(event_types.APP_READY, render);
 }
