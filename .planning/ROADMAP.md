@@ -10,7 +10,7 @@ A SillyTavern UI extension that queues swipe generations for the latest AI messa
 ## Phases
 
 - [x] **Phase 1: Route Verification Spike** - Choose the generation route with live ST 1.19.0 evidence and reword locked decisions (completed 2026-10-25)
-- [ ] **Phase 2: Single Queued Swipe End-to-End** - One queued swipe generates in background, appends as a native swipe page, saves safely
+- [x] **Phase 2: Single Queued Swipe End-to-End** - One queued swipe generates in background, appends as a native swipe page, saves safely (completed 2026-10-26)
 - [ ] **Phase 3: Full Queue Control & UI** - Multi-item queue with add-while-running, cancel, slash commands, badge/progress, settings
 - [ ] **Phase 4: Lifecycle, Persistence & Spend Safety** - Queue survives refresh and chat switches, reacts to user actions, and cannot run away on spend
 - [ ] **Phase 5: Compatibility & Release** - Verified alongside other extensions, no auto-swipe cascades, documented for release
@@ -92,7 +92,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
-| 2. Single Queued Swipe End-to-End | 5/6 | In Progress|  |
+| 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 0/TBD | Not started | - |
 | 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
