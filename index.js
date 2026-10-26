@@ -1,4 +1,6 @@
 // Wiring-only entry point. Construction of real modules happens here; no logic lives in this file.
+import { registerQueueControl } from './src/ui.js';
+
 const MODULE_NAME = 'queuedSwipes';
 
 const DEFAULT_SETTINGS = {
@@ -29,5 +31,5 @@ export async function init() {
   const { extensionSettings, saveSettingsDebounced } = SillyTavern.getContext();
   ensureSettings(extensionSettings, saveSettingsDebounced);
 
-  // TODO(Task 3 of this plan): import and register src/ui.js's queue control here.
+  registerQueueControl();
 }
