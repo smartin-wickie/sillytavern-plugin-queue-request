@@ -1,0 +1,10 @@
+{
+  "display_name": "Queued Swipes",
+  "loading_order": 20,
+  "js": "index.js",
+  "css": "style.css",
+  "author": "seant",
+  "version": "0.1.0",
+  "minimum_client_version": "1.19.0",
+  "hooks": { "activate": "init" }
+}
