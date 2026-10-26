@@ -1,9 +1,9 @@
 ---
-status: partial
+status: resolved
 phase: 02-single-queued-swipe-end-to-end
 source: [02-VERIFICATION.md]
 started: 2026-10-26T14:46:02Z
-updated: 2026-10-26T14:46:02Z
+updated: 2026-10-26T21:50:00.000Z
 ---
 
 ## Current Test
@@ -16,15 +16,15 @@ Note: this approval covers UI visibility and swipe-behavior non-regression, not 
 
 ### 1. Queue a swipe against a live Text Completion backend and confirm native-equivalent generation
 expected: A new swipe is appended with real generated text (not empty/stub), stop-strings/regex trimming applied, no streaming into the visible message, Send/swipe controls stay usable — matching the Chat Completion behavior already live-verified in 02-03/02-05.
-result: [pending — not covered by user's approval, which addressed UI visibility and swipe-behavior non-regression instead]
+result: skipped — user chose to close Phase 2 and park this as a known, non-blocking gap rather than test it now (code implemented, unit-tested error paths only; see 02-03-SUMMARY.md / 02-05-SUMMARY.md). Revisit before release if a Text Completion backend becomes available to test against.
 
 ## Summary
 
 total: 1
 passed: 0
 issues: 0
-pending: 1
-skipped: 0
+pending: 0
+skipped: 1
 blocked: 0
 
 ## Gaps
