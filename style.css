@@ -1,4 +1,23 @@
 .qs-queue-control {
   cursor: pointer;
-  /* TODO(Task 4): finalize sizing/disabled-state values after live measurement */
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  font-size: 20px;
+  line-height: 25px;
+}
+
+.qs-queue-control--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.qs-queue-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  color: inherit;
 }
