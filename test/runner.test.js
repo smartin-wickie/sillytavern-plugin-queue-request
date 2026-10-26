@@ -191,12 +191,29 @@ describe('createRunner', () => {
     expect(store.getItems().find((i) => i.id === item.id)).toMatchObject({ status: 'failed', reason: 'empty' });
   });
 
-  it('fires onItemFailed({id, reason}) subscribers when an item is dropped', async () => {
+  it('fires onItemFailed({id, reason}) subscribers when an item is dropped for a non-stale reason', async () => {
     const ctx = makeCtx();
     const bridge = makeBridge(ctx);
     const store = createStore({ bridge, maxQueueSize: 5 });
     const item = store.add(buildFingerprint(ctx, 0)).item;
-    ctx.chat[0].mes = 'edited'; // invalidate so the drop path fires
+
+    const generate = vi.fn().mockRejectedValue(new Error('api down'));
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+    const onFailed = vi.fn();
+    runner.onItemFailed(onFailed);
+
+    await runner.wake();
+
+    expect(onFailed).toHaveBeenCalledWith({ id: item.id, reason: 'api down' });
+  });
+
+  it('does NOT fire onItemFailed when an item is dropped as stale (GUARD-04 silent target-safety discard, not a GUARD-05 user-facing failure)', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    ctx.chat[0].mes = 'edited'; // invalidate so the pre-capture stale-drop path fires
 
     const generate = vi.fn();
     const append = vi.fn();
@@ -206,7 +223,7 @@ describe('createRunner', () => {
 
     await runner.wake();
 
-    expect(onFailed).toHaveBeenCalledWith({ id: item.id, reason: 'stale' });
+    expect(onFailed).not.toHaveBeenCalled();
   });
 
   it('drops the item at the second (pre-append) fingerprint checkpoint and never calls append(), even though the pre-capture check passed', async () => {
@@ -223,12 +240,15 @@ describe('createRunner', () => {
       return { text: 'generated text', meta: {} };
     });
     const append = vi.fn();
+    const onFailed = vi.fn();
     const runner = createRunner({ bridge, store, generate, append });
+    runner.onItemFailed(onFailed);
 
     await runner.wake();
 
     expect(append).not.toHaveBeenCalled();
     expect(store.getItems().find((i) => i.id === item.id)).toMatchObject({ status: 'failed', reason: 'stale' });
+    expect(onFailed).not.toHaveBeenCalled(); // stale drops never fire onItemFailed (GUARD-05)
   });
 
   it('pause() makes wake() a no-op (no generate() call) even when items are pending', async () => {
@@ -326,9 +346,8 @@ describe('createRunner', () => {
     const bridge = makeBridge(ctx);
     const store = createStore({ bridge, maxQueueSize: 5 });
     store.add(buildFingerprint(ctx, 0));
-    ctx.chat[0].mes = 'edited';
 
-    const generate = vi.fn();
+    const generate = vi.fn().mockRejectedValue(new Error('boom'));
     const append = vi.fn();
     const runner = createRunner({ bridge, store, generate, append });
     const onFailed = vi.fn();

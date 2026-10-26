@@ -29,6 +29,11 @@ export function createRunner({ bridge, store, generate, append }) {
   const failedListeners = new Set();
 
   function notifyFailed(id, reason) {
+    // A stale drop (fingerprint mismatch at either GUARD-04 checkpoint) is a silent
+    // target-safety discard, not a user-facing failure — GUARD-05's toast taxonomy only
+    // covers api/empty/cancelled, so firing a toast for every stale drop would be noise
+    // unrelated to anything the user did wrong.
+    if (reason === 'stale') return;
     for (const cb of failedListeners) cb({ id, reason });
   }
 
