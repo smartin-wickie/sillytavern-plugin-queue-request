@@ -3,6 +3,15 @@ import { buildFingerprint } from './fingerprint.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
 
+// GUARD-05's 3 locked toast variants (D-08/D-09) — static literals selected by a reason-code
+// lookup, never string-built from the underlying error object. 'stale' (and any other
+// unrecognized reason) intentionally has no entry here and never reaches a toast.
+const FAILURE_MESSAGES = {
+  api: 'Queued swipe failed: API error',
+  empty: 'Queued swipe failed: empty reply',
+  cancelled: 'Queued swipe failed: cancelled',
+};
+
 /**
  * Append (or remove) the queue-swipe control next to the swipe arrows on the latest message,
  * per the QUEUE-08 visibility gate. Re-created per render rather than delegated, so a direct
@@ -51,4 +60,12 @@ export function registerQueueControl({ store, runner }) {
   eventSource.on(event_types.MESSAGE_SWIPED, render);
   eventSource.on(event_types.CHAT_CHANGED, render);
   eventSource.on(event_types.APP_READY, render);
+
+  // GUARD-05: render exactly one of the 3 locked toast strings per failed item, never raw
+  // backend/error text. 'stale' drops are excluded upstream (runner.js) and never reach here.
+  runner.onItemFailed(({ reason }) => {
+    const msg = FAILURE_MESSAGES[reason];
+    if (!msg) return;
+    toastr.warning(msg, undefined, { preventDuplicates: true });
+  });
 }

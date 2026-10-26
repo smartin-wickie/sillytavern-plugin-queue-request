@@ -2,6 +2,7 @@
 import * as bridge from './src/st-bridge.js';
 import { createStore } from './src/store.js';
 import { createRunner } from './src/runner.js';
+import { createGuard } from './src/guard.js';
 import { appendSwipe } from './src/appender.js';
 import { registerQueueControl } from './src/ui.js';
 import { capture, send, cleanAndExtract, isSuccessful } from './src/adapter.js';
@@ -72,6 +73,8 @@ export async function init() {
   // Exactly one store/runner instance per loaded chat, not one per click.
   const store = createStore({ bridge, maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize });
   const runner = createRunner({ bridge, store, generate, append: appendSwipe });
+  const guard = createGuard({ bridge, runner });
+  guard.start();
 
   registerQueueControl({ store, runner });
 }
