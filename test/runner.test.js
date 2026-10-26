@@ -209,6 +209,94 @@ describe('createRunner', () => {
     expect(onFailed).toHaveBeenCalledWith({ id: item.id, reason: 'stale' });
   });
 
+  it('drops the item at the second (pre-append) fingerprint checkpoint and never calls append(), even though the pre-capture check passed', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+
+    // Simulate the target being edited while generate() was in flight: the pre-capture check
+    // (before generate() is called) already passed, so this must be caught by the second,
+    // independent check immediately before append().
+    const generate = vi.fn(async () => {
+      ctx.chat[0].mes = 'edited mid-generation';
+      return { text: 'generated text', meta: {} };
+    });
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+
+    await runner.wake();
+
+    expect(append).not.toHaveBeenCalled();
+    expect(store.getItems().find((i) => i.id === item.id)).toMatchObject({ status: 'failed', reason: 'stale' });
+  });
+
+  it('pause() makes wake() a no-op (no generate() call) even when items are pending', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+
+    const generate = vi.fn();
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+
+    runner.pause('native');
+    await runner.wake();
+
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('resume() clears the paused flag and processes a pending item', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+
+    const generate = vi.fn().mockResolvedValue({ text: 'generated', meta: {} });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+
+    runner.pause('native');
+    await runner.wake();
+    expect(generate).not.toHaveBeenCalled();
+
+    await runner.resume();
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('done');
+  });
+
+  it('pause() does not abort an item already mid-generate(); the current item still completes, but no further item starts until resume()', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const first = store.add(buildFingerprint(ctx, 0)).item;
+    const second = store.add(buildFingerprint(ctx, 0)).item;
+
+    let resolveFirst;
+    const generate = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce({ text: 'second text', meta: {} });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+
+    const wakePromise = runner.wake();
+    runner.pause('native'); // fires mid-flight, while the first item's generate() is pending
+
+    resolveFirst({ text: 'first text', meta: {} });
+    await wakePromise;
+
+    expect(generate).toHaveBeenCalledTimes(1); // only the first item ran; pause blocked the second
+    expect(store.getItems().find((i) => i.id === first.id).status).toBe('done');
+    expect(store.getItems().find((i) => i.id === second.id).status).toBe('queued');
+
+    await runner.resume();
+
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(store.getItems().find((i) => i.id === second.id).status).toBe('done');
+  });
+
   it.each([
     ['api', 'a thrown error from adapter.capture()/send(), normalized by the real generate() wrapper'],
     ['empty', 'a resolved-but-unsuccessful adapter result where sent.aborted is false'],

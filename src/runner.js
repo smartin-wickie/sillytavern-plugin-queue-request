@@ -24,6 +24,7 @@ function extractReason(err) {
 
 export function createRunner({ bridge, store, generate, append }) {
   let running = false;
+  let paused = false;
   let idleRetryTimer = null;
   const failedListeners = new Set();
 
@@ -81,6 +82,15 @@ export function createRunner({ bridge, store, generate, append }) {
       return true;
     }
 
+    // GUARD-04's second checkpoint: re-validate the target independently, immediately before
+    // the append, since an edit/delete/chat-switch may have landed in the window while
+    // generate() was running. The generated text is discarded here and never appended anywhere.
+    if (!fingerprintMatches(bridge, item.fingerprint)) {
+      store.drop(item.id, 'stale');
+      notifyFailed(item.id, 'stale');
+      return true;
+    }
+
     const mesId = item.fingerprint.mesId;
     const appended = await flushAppend(mesId, result.text, result.meta);
     if (appended === 'ok') {
@@ -96,6 +106,7 @@ export function createRunner({ bridge, store, generate, append }) {
 
   async function loop() {
     while (true) {
+      if (paused) return;
       if (!isIdle(bridge)) {
         scheduleIdleRetry();
         return;
@@ -108,9 +119,11 @@ export function createRunner({ bridge, store, generate, append }) {
   /**
    * Wake the runner to process queued items. A second wake() fired while one item is already
    * running (or while waiting for idle/append-retry) is a no-op — the active loop will pick up
-   * any newly enqueued item on its next iteration once it is free to do so.
+   * any newly enqueued item on its next iteration once it is free to do so. While paused, wake()
+   * is also a no-op even if items are pending (GEN-01's "no overlap with native generation").
    */
   async function wake() {
+    if (paused) return;
     if (running) return;
     running = true;
     try {
@@ -118,6 +131,21 @@ export function createRunner({ bridge, store, generate, append }) {
     } finally {
       running = false;
     }
+  }
+
+  /**
+   * Pause the runner: wake() becomes a no-op (does not start a new item) until resume() is
+   * called, even if items are pending. Does not abort an item already mid-generate() — the
+   * Guard only blocks the *next* item from starting, it never interrupts a running one.
+   */
+  function pause(reason) {
+    paused = true;
+  }
+
+  /** Clear the paused flag and kick the runner once. Returns wake()'s promise. */
+  function resume() {
+    paused = false;
+    return wake();
   }
 
   function onItemFailed(cb) {
@@ -128,5 +156,5 @@ export function createRunner({ bridge, store, generate, append }) {
     failedListeners.delete(cb);
   }
 
-  return { wake, onItemFailed, offItemFailed };
+  return { wake, pause, resume, onItemFailed, offItemFailed };
 }
