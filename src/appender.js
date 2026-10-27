@@ -1,4 +1,5 @@
 import * as bridge from './st-bridge.js';
+import { MODULE_NAME } from './st-bridge.js';
 
 /**
  * Append `text` as a new swipe on the message at `mesId`, mirroring native `/addswipe`
@@ -33,6 +34,11 @@ export async function appendSwipe(mesId, text, meta) {
     bridge.ensureSwipes(m);
   }
 
+  // Captured before the pushes below: "was the user already looking at the newest swipe"
+  // (needed for the auto-jump decision after the pushes land).
+  const previousSwipeId = m.swipe_id;
+  const previousLastIndex = m.swipes.length - 1;
+
   // Single synchronous block, no await between the two pushes (Pitfall 24/25).
   m.swipes.push(text);
   m.swipe_info.push({
@@ -47,7 +53,12 @@ export async function appendSwipe(mesId, text, meta) {
       reasoning_signature: meta.signature ?? null,
     },
   });
-  // swipe_id is never mutated here (SWIPE-03).
+  // swipe_id is only changed via swipe.to() when autoJump is enabled and the user was already
+  // on the newest swipe — otherwise never touched (SWIPE-03).
+  const autoJump = bridge.extension_settings[MODULE_NAME]?.autoJump === true;
+  if (autoJump && previousSwipeId === previousLastIndex) {
+    c.swipe.to(null, 'right', { source: 'queuedSwipes', message: m, forceMesId: mesId, forceSwipeId: m.swipes.length - 1 });
+  }
 
   c.chatMetadata.tainted = true;
 

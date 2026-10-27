@@ -2,7 +2,7 @@
 // control and dropdown already use (QUEUE-03/04). No new clamp/cancel logic is derived here —
 // `/queueswipe`'s clamp math mirrors `ui.js`'s `onControlClick` exactly, and `/queuecancel`
 // calls the shared `cancelAll(store, runner)` helper from `queueActions.js`.
-import { ctx } from './st-bridge.js';
+import { ctx, extension_settings, MODULE_NAME } from './st-bridge.js';
 import { buildFingerprint } from './fingerprint.js';
 
 /**
@@ -24,6 +24,19 @@ export function registerCommands({ store, runner, cancelAll }) {
       isRequired: false,
     })],
     callback: async (_namedArgs, unnamed) => {
+      // Gate on the Enable toggle directly (not st-bridge.js's canQueue()): canQueue() also
+      // calls c.swipe?.isAllowed?.(), which ST's own isGenerating()/is_send_press check makes
+      // false for the *entire* duration of any slash-command callback (confirmed live, 03-02's
+      // SUMMARY — is_send_press stays true through the whole send pipeline a slash command runs
+      // inside of). Calling canQueue() verbatim here would make /queueswipe always report
+      // "disabled" regardless of the Enable setting, a regression already investigated and
+      // reverted once this phase. This check reads only the live `enabled` flag instead.
+      const settings = extension_settings[MODULE_NAME];
+      if (settings && settings.enabled === false) {
+        toastr.warning('Queued swipes are disabled or unavailable right now.');
+        return '0';
+      }
+
       // Re-read room fresh on every single invocation — never cached across calls — so a
       // scripted `/times N {: /queueswipe :}` loop cannot enqueue past getMaxQueueSize().
       const requested = Math.max(1, Number(unnamed) || 1);

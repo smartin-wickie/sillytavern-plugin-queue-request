@@ -63,6 +63,8 @@ export function swipeState() {
 export function canQueue() {
   const c = ctx();
   if (c.groupId) return false;
+  const settings = extension_settings[MODULE_NAME];
+  if (settings && settings.enabled === false) return false;
   return Boolean(c.swipe?.isAllowed?.());
 }
 
