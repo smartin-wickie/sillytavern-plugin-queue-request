@@ -1,6 +1,7 @@
-import { ctx, canQueue, eventSource, event_types } from './st-bridge.js';
+import { ctx, canQueue, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
 import { buildFingerprint } from './fingerprint.js';
 import { cancelAll } from './queueActions.js';
+import { createRunAccumulator } from './toastAccumulator.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
 const CONTROL_DISABLED_CLASS = 'qs-queue-control--disabled';
@@ -16,14 +17,22 @@ const DROPDOWN_CANCEL_ITEM_CLASS = 'qs-dropdown-cancel-item';
 const DROPDOWN_CANCEL_RUNNING_CLASS = 'qs-dropdown-cancel-running';
 const DROPDOWN_CANCEL_ALL_CLASS = 'qs-dropdown-cancel-all';
 
-// GUARD-05's 3 locked toast variants (D-08/D-09) — static literals selected by a reason-code
-// lookup, never string-built from the underlying error object. 'stale' (and any other
-// unrecognized reason) intentionally has no entry here and never reaches a toast.
-const FAILURE_MESSAGES = {
-  api: 'Queued swipe failed: API error',
-  empty: 'Queued swipe failed: empty reply',
-  cancelled: 'Queued swipe failed: cancelled',
+// UI-03's coalesced-summary reason labels — short form for the "{reasons}" slot in a combined
+// toast (e.g. "API error, empty reply"), distinct from any full-sentence per-item string since
+// no per-item toast exists anymore. Static literals selected by a reason-code lookup, never
+// string-built from the underlying error object. 'stale' (and any other unrecognized reason)
+// never reaches runner.onItemFailed at all (runner.js's own filter), so it never appears here.
+const SHORT_FAILURE_LABELS = {
+  api: 'API error',
+  empty: 'empty reply',
+  cancelled: 'cancelled',
 };
+
+// D-12's live-read discipline: never cache extension_settings[MODULE_NAME] in a variable,
+// always re-read it fresh at the point of use — mirrors store.js's getMaxQueueSize() pattern.
+function getNotificationStyle() {
+  return extension_settings[MODULE_NAME]?.notificationStyle ?? 'all';
+}
 
 /**
  * Append (or remove) the queue-swipe control next to the swipe arrows on the latest message,
@@ -235,13 +244,35 @@ export function registerQueueControl({ store, runner }) {
   // Correct on first render too, not only after the first onChange/re-render event fires.
   renderQueueState(store, runner);
 
-  // GUARD-05: render exactly one of the 3 locked toast strings per failed item, never raw
-  // backend/error text. 'stale' drops are excluded upstream (runner.js) and never reach here.
-  runner.onItemFailed(({ reason }) => {
-    const msg = FAILURE_MESSAGES[reason];
-    if (!msg) return;
-    toastr.warning(msg, undefined, { preventDuplicates: true });
+  // UI-03: one coalesced summary toast per queue run, replacing Phase 2's per-item toast.
+  const acc = createRunAccumulator();
+
+  function flush({ completed, failures }) {
+    if (failures.size === 0) {
+      if (getNotificationStyle() === 'all') {
+        toastr.success(`${completed} queued swipe(s) completed.`);
+      }
+      return;
+    }
+    const reasons = [...failures.keys()].map((r) => SHORT_FAILURE_LABELS[r] ?? r).join(', ');
+    const failed = [...failures.values()].reduce((a, b) => a + b, 0);
+    if (getNotificationStyle() !== 'off') {
+      toastr.warning(`${completed} completed, ${failed} failed (${reasons}).`);
+    }
+  }
+
+  // Run boundary (Pitfall 2): only the 0->nonzero and nonzero->0 transitions of
+  // pendingCount()+runningCount() start/drain a run — this subscriber coexists alongside
+  // the renderQueueState subscriber above, both on the same store.onChange event.
+  store.onChange(() => {
+    const active = store.pendingCount() + store.runningCount() > 0;
+    const drained = acc.noteActivity(active);
+    if (drained) flush(drained);
   });
+  runner.onItemDone(() => acc.recordDone());
+  // 'stale' drops are excluded upstream (runner.js's notifyFailed) and never reach here, so
+  // they never enter the accumulator either — unchanged from Phase 2's exclusion rule.
+  runner.onItemFailed(({ reason }) => acc.recordFailed(reason));
 
   // Cancel dropdown dismissal: any click outside both the dropdown panel and the badge that
   // opens it closes every open dropdown instance, without cancelling anything (D-01, UI-SPEC

@@ -42,6 +42,10 @@ export {
   event_types,
 };
 
+// Centralizes the module name constant so other modules (e.g. ui.js's live
+// notification-style read) don't each re-declare their own copy of this string.
+export const MODULE_NAME = 'queuedSwipes';
+
 /** Fresh-context accessor. Never cache the return value across an `await`. */
 export const ctx = () => SillyTavern.getContext();
 
