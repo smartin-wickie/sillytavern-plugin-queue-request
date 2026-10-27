@@ -3,6 +3,7 @@
 // (D-12) — no field ever caches a settings reference across its own handler invocation.
 import { MODULE_NAME } from './st-bridge.js';
 import { HARD_MAX_QUEUE } from './store.js';
+import { injectControl } from './ui.js';
 
 // Resolves this extension's own template folder dynamically rather than hardcoding a folder
 // name no source in this repo confirms. For a correctly-installed extension the regex always
@@ -20,7 +21,7 @@ const EXTENSION_NAME = (() => {
  * "Max queue size" field can call store.setMaxQueueSize() and change the running cap
  * immediately, not just persist the new value (closing the gap D-12 otherwise leaves open).
  */
-export async function registerSettingsPanel({ store } = {}) {
+export async function registerSettingsPanel({ store, runner } = {}) {
   const { renderExtensionTemplateAsync } = SillyTavern.getContext();
   const html = await renderExtensionTemplateAsync(EXTENSION_NAME, 'settings', {});
   $('#extensions_settings2').append(html);
@@ -37,6 +38,12 @@ export async function registerSettingsPanel({ store } = {}) {
   $('#qs_enabled').on('change', function () {
     SillyTavern.getContext().extensionSettings[MODULE_NAME].enabled = $(this).prop('checked');
     SillyTavern.getContext().saveSettingsDebounced();
+    // injectControl() only runs on specific ST chat events; toggling Enable isn't one of
+    // them, so without this the control/icon stays visible (and onControlClick's own
+    // canQueue() guard only stops it from doing anything once clicked, not from lingering
+    // in the DOM) until the next unrelated re-render. Force it immediately (confirmed live,
+    // SET-01 Task 3).
+    injectControl(store, runner);
   });
 
   $('#qs_max_queue').on('input', function () {

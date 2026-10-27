@@ -88,5 +88,5 @@ export async function init() {
   registerCommands({ store, runner, cancelAll });
   registerWandMenu({ store, runner, cancelAll, canQueue: bridge.canQueue });
   registerProgressBar({ store, runner, cancelAll });
-  await registerSettingsPanel({ store });
+  await registerSettingsPanel({ store, runner });
 }

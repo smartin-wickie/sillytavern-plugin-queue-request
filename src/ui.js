@@ -39,7 +39,10 @@ function getNotificationStyle() {
  * per the QUEUE-08 visibility gate. Re-created per render rather than delegated, so a direct
  * click listener on the fresh element is correct and avoids double-binding.
  */
-function injectControl(store, runner) {
+// Exported so a settings change that affects canQueue() (currently only the Enable toggle)
+// can force the same re-render injectControl's own ST-event listeners already trigger,
+// rather than leaving a stale control/icon visible until the next unrelated chat event.
+export function injectControl(store, runner) {
   const lastMes = document.querySelector('.last_mes');
   const swipeRightEl = lastMes?.querySelector('.swipe_right');
 
@@ -215,6 +218,13 @@ function renderDropdown(control, store, runner) {
 // full-queue condition renderDisabledState() uses before ever calling store.add() — a
 // disabled-looking-but-still-wired control is a real bug class, not just a cosmetic gap.
 function onControlClick(store, runner) {
+  // injectControl() only re-checks canQueue() on specific ST re-render events (see
+  // registerSettingsPanel's forced refresh for the one gap that leaves: the Enable toggle
+  // itself isn't one of them), so the control can briefly remain in the DOM after the
+  // setting flips off. This is the actual enforcement point — without it, a still-visible
+  // stale control would successfully queue a swipe even with Enable unchecked (confirmed
+  // live, SET-01 Task 3).
+  if (!canQueue()) return;
   const n = store.pendingCount() + store.runningCount();
   if (n >= store.getMaxQueueSize()) return;
 
