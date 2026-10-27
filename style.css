@@ -1,6 +1,10 @@
 .qs-queue-control {
   cursor: pointer;
   position: relative;
+  /* .swipeRightBlock (ST core style.css) sets pointer-events:none on itself and re-enables
+     it only on specific children (.swipe_right, .swipes-counter); without this the control
+     is visible but unclickable by a real mouse (confirmed live, ST 1.19.0). */
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -20,16 +24,30 @@
   top: -4px;
   right: -4px;
   color: inherit;
+  /* Without an explicit compact size the badge inherits .qs-queue-control's 20px icon
+     font-size, so its bounding box balloons to cover the entire control and the icon
+     becomes unclickable for a 2nd/3rd queue click (confirmed live, ST 1.19.0). UI-SPEC
+     calls for ".swipes-counter"-matching compact text as a corner-notification overlap,
+     not a full-icon-covering pill. */
+  font-size: 12px;
+  line-height: 1;
 }
 
 /* Cancel dropdown (D-01-D-04): anchored to the badge, not a modal popup. */
 .qs-queue-dropdown {
   display: none;
   position: absolute;
-  top: 100%;
+  /* Opens upward (bottom: 100%), not downward: the control sits on the LAST message,
+     which #chat (overflow: hidden scroll) keeps pinned near the viewport bottom just
+     above the fixed composer bar. Opening downward (the plan's original "below the
+     badge" assumption) pushes the panel past #chat's clipped bottom edge and renders
+     it completely invisible behind the composer — confirmed live, ST 1.19.0. Opening
+     upward stays inside #chat's visible scrolled region, overlapping message text,
+     which is the standard dropdown-over-content pattern. */
+  bottom: 100%;
   right: 0;
   z-index: 10;
-  margin-top: 4px;
+  margin-bottom: 4px;
   padding: 16px;
   /* Reuse ST's existing popup/dropdown surface styling (its own context-menu/Extensions-drawer
      background+border), per 03-UI-SPEC.md Color (Secondary 30%) — exact variable name pending
