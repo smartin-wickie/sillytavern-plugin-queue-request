@@ -100,3 +100,54 @@
   border: 1px solid var(--crimson70a);
   border-radius: 4px;
 }
+
+/* Top-of-chat progress bar (UI-02). Hidden by default; shown only while pending+running > 0,
+   same show/hide discipline as the badge (UI-01). Insertion point (#sheld prepend, #chat
+   fallback) is pending live confirmation against ST 1.19.0 (03-RESEARCH.md Open Question #2,
+   Task 3 checkpoint). */
+.qs-progress-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  position: relative;
+  width: 100%;
+}
+
+.qs-progress-bar--visible {
+  display: flex;
+}
+
+.qs-progress-bar-fill {
+  /* Declared spacing-scale exception (03-UI-SPEC.md Spacing Scale): a 4px visual fill
+     indicator, not a spacing gap. Width is driven inline via JS, never here. */
+  height: 4px;
+  /* Accent reservation — reserved exclusively for this one element (03-UI-SPEC.md Color,
+     Accent 10%); exact --SmartTheme*-family variable name pending live confirmation against
+     ST 1.19.0 (Task 3 checkpoint), per the "verify live, never guess from memory" rule. */
+  background: var(--SmartThemeQuoteColor);
+  border-radius: 2px;
+  flex: 1 1 auto;
+}
+
+.qs-progress-bar-label {
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.qs-progress-bar-stop {
+  cursor: pointer;
+  /* Matches .qs-queue-control's existing icon sizing convention rather than inventing a new
+     size (plan Task 2 action). */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  /* Destructive reservation (stop = Cancel all) — same variable as the dropdown's own
+     destructive controls, per 03-UI-SPEC.md Color (Destructive). */
+  color: var(--crimson70a);
+}
