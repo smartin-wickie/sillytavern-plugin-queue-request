@@ -433,7 +433,7 @@ describe('createRunner', () => {
     expect(opts.signal.aborted).toBe(false);
   });
 
-  it('onItemDone(cb) fires { id } immediately after store.markDone(), and offItemDone(cb) stops further notifications', async () => {
+  it('onItemDone(cb) fires { id } and the item ends up done in the store, and offItemDone(cb) stops further notifications', async () => {
     const ctx = makeCtx();
     const bridge = makeBridge(ctx);
     const store = createStore({ bridge, maxQueueSize: 5 });

@@ -83,8 +83,8 @@ export function createRunner({ bridge, store, generate, append }) {
       result = await generate(item, { signal: runningController.signal });
     } catch (err) {
       const reason = extractReason(err);
-      store.drop(item.id, reason);
       notifyFailed(item.id, reason);
+      store.drop(item.id, reason);
       return true;
     } finally {
       runningController = null;
@@ -92,8 +92,8 @@ export function createRunner({ bridge, store, generate, append }) {
 
     if (result && typeof result === 'object' && 'error' in result) {
       const reason = extractReason(result);
-      store.drop(item.id, reason);
       notifyFailed(item.id, reason);
+      store.drop(item.id, reason);
       return true;
     }
 
@@ -112,13 +112,18 @@ export function createRunner({ bridge, store, generate, append }) {
       appended = await flushAppend(mesId, result.text, result.meta);
     } catch (err) {
       const reason = extractReason(err);
-      store.drop(item.id, reason);
       notifyFailed(item.id, reason);
+      store.drop(item.id, reason);
       return true;
     }
     if (appended === 'ok') {
-      store.markDone(item.id);
+      // notifyDone() fires before store.markDone(): the latter's store.onChange triggers
+      // ui.js's run-boundary drain detection synchronously, and for the LAST item in a run
+      // that detection fires flush() in this same call stack — so the toast-coalescing
+      // accumulator's recordDone() must have already run, or the drain's `completed` count
+      // undercounts the very item that just finished (confirmed live, off-by-one, ST 1.19.0).
       notifyDone(item.id);
+      store.markDone(item.id);
     } else if (appended === 'stale') {
       // Target changed while this item was generating; the generated text is discarded here
       // and is never retried or appended elsewhere.
