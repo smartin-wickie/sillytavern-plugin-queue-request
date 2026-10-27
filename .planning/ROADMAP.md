@@ -74,7 +74,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Runner abortRunning()/onItemDone() + shared cancelAll() + cancel dropdown anchored to the badge
+- [x] 03-01-PLAN.md — Runner abortRunning()/onItemDone() + shared cancelAll() + cancel dropdown anchored to the badge
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -127,6 +127,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
-| 3. Full Queue Control & UI | 0/4 | Not started | - |
+| 3. Full Queue Control & UI | 1/4 | In Progress|  |
 | 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
