@@ -60,7 +60,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Spend Safety
 
-- [ ] **SAFE-01**: Queue pauses after N consecutive failures (default 2) and notifies the user; no automatic retries
+- [ ] **SAFE-01**: Queue pauses after N consecutive failures (default 3) and notifies the user; no automatic retries
 - [ ] **SAFE-02**: Queue pauses if API, model, or preset changed since items were queued, and asks before continuing
 - [ ] **SAFE-03**: Queue refuses to start or pauses while Prompt Inspector is enabled, with a toast explaining why
 - [ ] **SAFE-04**: Only one browser tab runs a given chat's queue; other tabs show state read-only
