@@ -447,18 +447,22 @@ window.addEventListener('pagehide', () => release());
 | A7 | Immediate `saveChat()` on enqueue is safe (the control is only present while swipes are allowed, i.e. idle) | Pattern 3 | `/queueswipe` can run mid-send inside a slash callback (`is_send_press` true); a save then writes the in-progress chat state like any ST autosave. Low risk, but confirm via live smoke. |
 | A8 | Chrome intensive throttling can delay a hidden owner's heartbeat past 5s | Pattern 4 | Spurious paused takeover. Accepted by D-09. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Takeover toast with an empty queue**
    - What we know: UI-SPEC shows the takeover toast ("It is paused; resume from the queue badge") whenever a read-only tab becomes owner.
    - What's unclear: with 0 stored items there is nothing to resume.
    - Recommendation: show the toast only when `store` holds at least 1 item; otherwise become owner silently. Minor UI-SPEC deviation, needs a nod.
+   - RESOLVED: toast only when >=1 item is held (plans 07/08); otherwise become owner silently.
 2. **Refresh with a missed `pagehide` (A1)**
    - Recommendation: ship the 5s-stale-lease-as-fresh-load rule; revisit with a BroadcastChannel liveness ping only if live smoke shows a problem.
+   - RESOLVED: mitigated by the 5s stale-lease rule; confirm in plan 08 smoke step 1 (recorded as A1).
 3. **Progress-bar `completed` in read-only tabs**
    - `completed` is a closure variable in `progressBar.js`. Recommendation: owner includes it in the state snapshot; extract a tiny shared `runStats` or put it on the snapshot, whichever is smaller.
+   - RESOLVED: `completed` moves into the store (plan 08), owner publishes it in the snapshot.
 4. **Does `GENERATION_ENDED` reliably fire for native swipe/continue completion on 1.19.0?**
    - Mitigated by the idle watchdog; confirm in live smoke which path actually clears `native`.
+   - RESOLVED: mitigated by the idle watchdog; confirm in plan 08 smoke step 3. A6 (extra MESSAGE_RECEIVED new-message trigger) is included in plan 02.
 
 ## Environment Availability
 
