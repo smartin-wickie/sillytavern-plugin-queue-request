@@ -3,6 +3,18 @@ import { buildFingerprint } from '../src/fingerprint.js';
 import { createStore } from '../src/store.js';
 import { createRunner } from '../src/runner.js';
 
+// adapter.js imports st-bridge.js, which imports ST's own script.js via a relative path that
+// only resolves once this extension is deployed inside a live ST install — unresolvable under
+// plain Node/Vitest. Mock adapter.js so the test graph never touches st-bridge.js, while still
+// faithfully exercising abortRunning()'s delegation: abort the controller, report its signal
+// state, exactly like the real abortOwn(ownController) in src/adapter.js.
+vi.mock('../src/adapter.js', () => ({
+  abortOwn: vi.fn(async (ownController) => {
+    ownController.abort();
+    return { aborted: ownController.signal.aborted };
+  }),
+}));
+
 function makeCtx(overrides = {}) {
   return {
     chatId: 'chat-1',
@@ -357,5 +369,111 @@ describe('createRunner', () => {
     await runner.wake();
 
     expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it('abortRunning() returns { aborted: false } when no item is currently mid-generate()', () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+
+    const generate = vi.fn();
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+
+    expect(runner.abortRunning()).toEqual({ aborted: false });
+  });
+
+  it('abortRunning() aborts the in-flight generate() signal while an item is running, and the aborted item is dropped with reason "cancelled" once generate() resolves accordingly', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+
+    let receivedSignal;
+    let resolveGenerate;
+    const generate = vi.fn((_item, { signal } = {}) => {
+      receivedSignal = signal;
+      return new Promise((resolve) => { resolveGenerate = resolve; });
+    });
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+
+    const wakePromise = runner.wake();
+    // Let processNext() reach the generate() call and set up runningController.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const { aborted } = await runner.abortRunning();
+
+    expect(aborted).toBe(true);
+    expect(receivedSignal).toBeDefined();
+    expect(receivedSignal.aborted).toBe(true);
+
+    resolveGenerate({ error: 'cancelled' });
+    await wakePromise;
+
+    expect(store.getItems().find((i) => i.id === item.id)).toMatchObject({ status: 'failed', reason: 'cancelled' });
+  });
+
+  it('generate() is called with { signal } sourced from a fresh per-item AbortController owned by the runner', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+
+    const generate = vi.fn().mockResolvedValue({ text: 'ok', meta: {} });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+
+    await runner.wake();
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    const [, opts] = generate.mock.calls[0];
+    expect(opts.signal).toBeInstanceOf(AbortSignal);
+    expect(opts.signal.aborted).toBe(false);
+  });
+
+  it('onItemDone(cb) fires { id } immediately after store.markDone(), and offItemDone(cb) stops further notifications', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+
+    const generate = vi.fn().mockResolvedValue({ text: 'ok', meta: {} });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+    const onDone = vi.fn();
+    runner.onItemDone(onDone);
+
+    await runner.wake();
+
+    expect(onDone).toHaveBeenCalledWith({ id: item.id });
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('done');
+
+    onDone.mockClear();
+    runner.offItemDone(onDone);
+
+    const second = store.add(buildFingerprint(ctx, 0)).item;
+    await runner.wake();
+
+    expect(store.getItems().find((i) => i.id === second.id).status).toBe('done');
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('onItemDone(cb) does NOT fire when an item fails or is dropped as stale', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+
+    const generate = vi.fn().mockRejectedValue(new Error('boom'));
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+    const onDone = vi.fn();
+    runner.onItemDone(onDone);
+
+    await runner.wake();
+
+    expect(onDone).not.toHaveBeenCalled();
   });
 });

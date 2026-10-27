@@ -14,17 +14,17 @@ const DEFAULT_SETTINGS = {
 };
 
 /**
- * Real Generation Adapter-backed generator passed into createRunner(). Each item gets its own
- * fresh AbortController (never reused across items), sequences capture -> send -> cleanAndExtract,
- * and resolves a typed result per adapter.isSuccessful() — never throwing out of the happy path.
- * A thrown error from capture()/send() (network failure, HTTP non-2xx) is normalized to
- * { error: 'api' }; a resolved-but-unsuccessful result is { error: 'cancelled' } when the send
- * was aborted, otherwise { error: 'empty' }.
+ * Real Generation Adapter-backed generator passed into createRunner(). The runner owns the
+ * per-item AbortController and passes its signal in here (never reused across items); this
+ * function sequences capture -> send -> cleanAndExtract and resolves a typed result per
+ * adapter.isSuccessful() — never throwing out of the happy path. A thrown error from
+ * capture()/send() (network failure, HTTP non-2xx) is normalized to { error: 'api' }; a
+ * resolved-but-unsuccessful result is { error: 'cancelled' } when the send was aborted,
+ * otherwise { error: 'empty' }. `item` is accepted but unused: capture() derives the prompt
+ * from live ST state, not from the queued item.
  */
-async function generate() {
+async function generate(item, { signal } = {}) {
   const started = new Date();
-  const ownController = new AbortController();
-  const { signal } = ownController;
 
   let sent;
   try {

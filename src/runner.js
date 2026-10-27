@@ -5,6 +5,7 @@
 // grow unbounded on a long-paused queue.
 
 import { fingerprintMatches } from './fingerprint.js';
+import { abortOwn } from './adapter.js';
 
 const APPEND_RETRY_MS = 250;
 const IDLE_RETRY_MS = 250;
@@ -26,7 +27,9 @@ export function createRunner({ bridge, store, generate, append }) {
   let running = false;
   let paused = false;
   let idleRetryTimer = null;
+  let runningController = null;
   const failedListeners = new Set();
+  const doneListeners = new Set();
 
   function notifyFailed(id, reason) {
     // A stale drop (fingerprint mismatch at either GUARD-04 checkpoint) is a silent
@@ -35,6 +38,10 @@ export function createRunner({ bridge, store, generate, append }) {
     // unrelated to anything the user did wrong.
     if (reason === 'stale') return;
     for (const cb of failedListeners) cb({ id, reason });
+  }
+
+  function notifyDone(id) {
+    for (const cb of doneListeners) cb({ id });
   }
 
   function scheduleIdleRetry() {
@@ -71,13 +78,16 @@ export function createRunner({ bridge, store, generate, append }) {
     store.markRunning(item.id);
 
     let result;
+    runningController = new AbortController();
     try {
-      result = await generate(item);
+      result = await generate(item, { signal: runningController.signal });
     } catch (err) {
       const reason = extractReason(err);
       store.drop(item.id, reason);
       notifyFailed(item.id, reason);
       return true;
+    } finally {
+      runningController = null;
     }
 
     if (result && typeof result === 'object' && 'error' in result) {
@@ -108,6 +118,7 @@ export function createRunner({ bridge, store, generate, append }) {
     }
     if (appended === 'ok') {
       store.markDone(item.id);
+      notifyDone(item.id);
     } else if (appended === 'stale') {
       // Target changed while this item was generating; the generated text is discarded here
       // and is never retried or appended elsewhere.
@@ -169,5 +180,25 @@ export function createRunner({ bridge, store, generate, append }) {
     failedListeners.delete(cb);
   }
 
-  return { wake, pause, resume, onItemFailed, offItemFailed };
+  function onItemDone(cb) {
+    doneListeners.add(cb);
+  }
+
+  function offItemDone(cb) {
+    doneListeners.delete(cb);
+  }
+
+  /**
+   * Abort the item currently mid-generate(), if any (QUEUE-06/D-02). Delegates to adapter.js's
+   * abortOwn(), which only ever touches this runner's own AbortController — never ST's global
+   * stopGeneration(). send() already resolves { aborted: true } rather than throwing, so the
+   * aborted item is dropped with reason 'cancelled' by processNext()'s existing error-handling
+   * branch, unmodified.
+   */
+  function abortRunning() {
+    if (!runningController) return { aborted: false };
+    return abortOwn(runningController);
+  }
+
+  return { wake, pause, resume, onItemFailed, offItemFailed, abortRunning, onItemDone, offItemDone };
 }
