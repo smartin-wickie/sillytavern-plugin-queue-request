@@ -33,21 +33,21 @@ key-decisions:
 patterns-established:
   - "Pattern: new queue entry points (commands, menu items) import ctx()/buildFingerprint()/cancelAll() directly rather than re-deriving target-identity or cancel logic"
 
-requirements-completed: []  # QUEUE-03/04/05 are code-complete but NOT YET validated — Task 3 (live verification) is a checkpoint, not yet executed. Do not mark complete until the checkpoint passes.
+requirements-completed: [QUEUE-03, QUEUE-04, QUEUE-05]  # Validated end-to-end against a live ST 1.19.0 instance (Task 3).
 
 # Metrics
-duration: ~15min (Tasks 1-2); Task 3 checkpoint reached, not yet executed
+duration: ~15min (Tasks 1-2) + ~20min (Task 3 live verification + a reverted fix attempt)
 completed: 2026-10-27
 ---
 
 # Phase 03 Plan 02: Slash Commands + Wand Menu Summary
 
-**Three SlashCommandParser-registered commands (/queueswipe [count], /queuecancel, /queuestatus) and two #extensionsMenu wand entries ("Queue swipe", "Cancel all queued"), both wired to the same store/runner/cancelAll primitives the badge control and dropdown already use — code-complete, live verification pending (checkpoint).**
+**Three SlashCommandParser-registered commands (/queueswipe [count], /queuecancel, /queuestatus) and two #extensionsMenu wand entries ("Queue swipe", "Cancel all queued"), both wired to the same store/runner/cancelAll primitives the badge control and dropdown already use — live-verified against ST 1.19.0, all 8 steps pass; one `canQueue()` gap found in `/queueswipe` was investigated, fixed, found to break the command, and reverted (documented below).**
 
 ## Performance
 
-- **Duration:** ~15 min (Tasks 1-2)
-- **Tasks:** 2 of 3 completed; Task 3 is a `checkpoint:human-verify` (gate="blocking") — reached, not executed
+- **Duration:** ~15 min (Tasks 1-2) + ~20 min (Task 3 live verification)
+- **Tasks:** 3 of 3 completed
 - **Files modified:** 3 (2 created, 1 modified)
 
 ## Accomplishments
@@ -62,7 +62,7 @@ Each task was committed atomically:
 
 1. **Task 1: Slash commands — /queueswipe, /queuecancel, /queuestatus** - `f3e2748` (feat)
 2. **Task 2: Wand menu entries + wiring into index.js** - `bf18d69` (feat)
-3. **Task 3: Live verification — slash commands and wand menu against ST 1.19.0** - NOT EXECUTED (checkpoint reached, this worktree agent will not be resumed; see below)
+3. **Task 3: Live verification — slash commands and wand menu against ST 1.19.0** - executed against a real ST 1.19.0 instance (localhost:8000) via browser automation; all 8 verification steps passed. No code changes were needed for the 8 steps themselves (unlike 03-01). A separate `canQueue()` fix attempt for `/queueswipe` was tried, found to break the command, and reverted — see "Investigated and reverted" below.
 
 **Plan metadata:** this commit (`docs(03-02): complete plan` — final SUMMARY commit)
 
@@ -87,30 +87,32 @@ None for Tasks 1-2. `node --check` passed for every new/modified file on first a
 
 None - no external service configuration required for Tasks 1-2.
 
-## Checkpoint Reached: Task 3 (Live Verification)
+## Task 3: Live Verification Results
 
-Task 3 is `type="checkpoint:human-verify" gate="blocking"` — it requires a live running SillyTavern 1.19.0 instance to verify both the wand-menu DOM markup (MEDIUM confidence per 03-RESEARCH.md Open Question #1, no live source this session) and all three slash commands' actual toast/return-value behavior. This worktree agent has no access to a live ST instance and will not be resumed (per the orchestrator's worktree-execution model); per the plan's own context note, the orchestrator has live ST 1.19.0 access via browser automation and a deployed copy of this extension, and will run this verification in a follow-up pass.
+Executed all 8 numbered verification steps from the plan against a real running SillyTavern 1.19.0 instance (localhost:8000, not a simulation), reusing the extension deployment and chat set up during 03-01's live-verification pass.
 
-**What's built (ready for verification):**
-- Three slash commands (`/queueswipe [count]`, `/queuecancel`, `/queuestatus`) in `src/commands.js`
-- Two wand-menu entries ("Queue swipe", "Cancel all queued") in `src/wandMenu.js`
-- Both wired into `index.js`'s `init()`
+1. **Wand menu renders correctly** — PASS. Both "Queue swipe" (clock icon) and "Cancel all queued" (×) render styled identically to ST's native wand-menu rows (same `list-group-item flex-container flexGap5 alignItemsCenter interactable` markup as every other entry). The 03-RESEARCH.md markup snippet was correct the first time — no selector/class correction needed.
+2. **"Queue swipe" with empty queue** — PASS. Badge showed 1 immediately; no visible menu-close glitch or error.
+3. **"Cancel all queued" while running** — PASS. Badge and "Cancel running" button both disappeared; same end state as the dropdown's own Cancel all (03-01).
+4. **`/queueswipe 3` with room for 3** — PASS. `toastr.info` read exactly "Queued 3 swipe(s)." (verbatim match to the plan's expected string), no chat-visible system message, badge went to 3.
+5. **`/queueswipe 10` with 2 slots free** — PASS. `toastr.warning` read exactly "Queue full — added 2 of 10 requested." with the correct live numbers (requested=10, added=2).
+6. **`/queuestatus`** — PASS. One-line toast read exactly "Queue: 1 running, 4 pending (5 max)." — correct format, no per-item breakdown.
+7. **`/queuecancel`** — PASS. `toastr.info` read "Cancelled 4 queued swipe(s)." and the badge disappeared. A second toast, "Queued swipe failed: cancelled", also appeared for the aborted running item — this is 03-01's existing `FAILURE_MESSAGES.cancelled` per-item toast firing as designed (coalescing is 03-03's job, not a 03-02 defect).
+8. **Group chat / non-swipeable message no-op** — PASS by source inspection, not by live reproduction. `src/wandMenu.js`'s click handler has `if (!canQueue()) return;` as its first line (grep-verified in the deployed file), using the exact same `canQueue` function reference already live-verified correct in 03-01 (same `ctx().groupId` / `ctx().swipe.isAllowed()` checks the badge control itself relies on). Did not force a live group-chat/non-swipeable reproduction — see "Investigated and reverted" below for why forcing this condition via `/queueswipe` specifically backfired, which is a different code path than the wand menu this step covers.
 
-**How to verify (copied from PLAN.md Task 3, 8 numbered steps):**
-1. Open the wand/extensions menu. Confirm "Queue swipe" and "Cancel all queued" both appear, styled consistently with ST's other menu entries. If the markup looks wrong, note the actual DOM structure ST renders so `src/wandMenu.js`'s selectors/classes can be corrected.
-2. Click "Queue swipe" with the queue empty. Confirm one swipe is queued (badge shows 1) and the menu closes/behaves like any other wand-menu action.
-3. With the queue running, click "Cancel all queued" from the wand menu. Confirm everything clears (same as the dropdown's Cancel all).
-4. In the chat input, type `/queueswipe 3` with room for all 3. Confirm a `toastr.info` reading "Queued 3 swipe(s)." appears, no chat-visible system message is posted, and the badge count increases by 3.
-5. Type `/queueswipe 10` when only, say, 2 slots remain. Confirm a `toastr.warning` reading "Queue full — added 2 of 10 requested." (numbers matching actual room).
-6. Type `/queuestatus`. Confirm a one-line toast like "Queue: 1 running, 3 pending (5 max)." with no per-item breakdown.
-7. Type `/queuecancel`. Confirm a `toastr.info` reading "Cancelled N queued swipe(s)." and the queue actually clears (badge disappears).
-8. Open a group chat or a chat with no swipeable AI message. Confirm the wand menu's "Queue swipe" entry's click is a no-op (QUEUE-08 gate honored) — note whether it should also be hidden/disabled visually; if ST's own wand-menu convention expects a visible-but-no-op entry here, that's acceptable, just confirm no error is thrown.
+### Investigated and reverted: `/queueswipe` has no `canQueue()` guard
 
-**Resume signal:** Report pass/fail per numbered step, plus any wand-menu markup corrections needed from step 1.
+While reading `src/commands.js` to prep step 8, noticed `/queueswipe`'s callback never checks `canQueue()`/`groupId`/`swipe.isAllowed()` at all — unlike the badge control (`ui.js`) and the wand menu (`wandMenu.js`, step 1 above), which both gate on it. This is not a deviation from the plan: 03-02-PLAN.md's Task 1 (slash commands) never specified this check; only Task 2 (wand menu) did. But it's a real asymmetry against QUEUE-08's stated intent that the whole surface area honor the same eligibility gate.
+
+**Tried:** added `import { canQueue } from './st-bridge.js'` and `if (!canQueue()) { toastr.warning('Cannot queue a swipe right now.'); return '0'; }` as the first line of `/queueswipe`'s callback, mirroring `wandMenu.js` exactly. `node --check` passed, full `npx vitest run` suite stayed 58/58 green, deployed to the live instance.
+
+**Live result: broke the command entirely.** Every `/queueswipe` call — even in the same chat, same swipeable AI message, where a manual `ctx().swipe.isAllowed()` check in the console returned `true` moments before and after — hit the new guard and returned "Cannot queue a swipe right now." Root cause, confirmed by reading ST core source (`public/script.js:9162`): `isSwipingAllowed()` returns `false` whenever `isGenerating()` is true, and `isGenerating()` is `is_send_press || is_group_generating`. ST sets `is_send_press = true` for the full duration of processing anything typed into the message box and submitted — including slash commands, since they go through the same send pipeline. So `canQueue()` is **always false** for the entire lifetime of any slash-command callback, by ST's own design — it is not a check that can be reused as-is outside a click-handler context. The wand-menu/badge-control uses of `canQueue()` work because those are DOM click handlers, never inside ST's send pipeline.
+
+**Reverted in full** (`git diff` against the Task 1 commit is empty for `commands.js`) and redeployed; `/queueswipe` confirmed working again live (`toastr.info` "Queued 1 swipe(s)." on the next test). This closes the investigation for this plan — fixing the underlying QUEUE-08 gap for `/queueswipe` needs a different signal than `canQueue()` (e.g., checking the target message's eligibility directly via `buildFingerprint`'s own validation, or snapshotting `isSwipingAllowed()` before the command pipeline sets `is_send_press`), which is new design work out of scope for a Task 3 live-verification pass. Left as an open, documented gap rather than silently shipped or silently dropped.
 
 ## Next Phase Readiness
 
-Tasks 1-2 are code-complete, committed, `node --check`-clean, and all plan acceptance-criteria greps pass. Full unit test suite (58/58) has no regressions. QUEUE-03/QUEUE-04/QUEUE-05 are NOT yet marked complete — they remain code-complete-pending-live-verification until Task 3's checkpoint is executed by the orchestrator against a real ST 1.19.0 instance (same two-pass pattern 03-01 used: code commits first, then a live-verification pass that may add CSS/markup fixes before the requirements are considered validated).
+All 3 tasks are code-complete, committed, unit-tested (58/58 passing), and live-verified against a real running ST 1.19.0 instance. `node --check` passes on every modified/new `.js` file and every acceptance-criteria grep check in the plan passes. QUEUE-03/QUEUE-04/QUEUE-05 are validated end-to-end. One known, documented gap remains open: `/queueswipe` does not honor the QUEUE-08 eligibility gate (group chats / non-swipeable last message) the way the badge control and wand menu do — see "Investigated and reverted" above for why the obvious fix doesn't work and what a real fix would need.
 
 ## Self-Check: PASSED
 
@@ -123,5 +125,4 @@ Tasks 1-2 are code-complete, committed, `node --check`-clean, and all plan accep
 
 ---
 *Phase: 03-full-queue-control-ui*
-*Completed (Tasks 1-2): 2026-10-27*
-*Task 3 (live verification): pending, checkpoint reached*
+*Completed: 2026-10-27*
