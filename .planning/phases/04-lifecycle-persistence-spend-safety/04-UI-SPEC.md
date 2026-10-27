@@ -1,10 +1,11 @@
 ---
 phase: 4
 slug: lifecycle-persistence-spend-safety
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-10-27
+reviewed_at: 2026-10-27
 ---
 
 # Phase 4 — UI Design Contract
@@ -124,8 +125,8 @@ All strings are static literals. Interpolated values are numbers or ST-provided 
 | N consecutive failures (SAFE-01) | `toastr.warning`: `Queue paused after {n} failures in a row. Check your connection, then resume from the queue badge.` No automatic retry |
 | Connection changed (SAFE-02) | No toast. The popup above is the notice. If the popup is dismissed, the paused-reason line explains the state |
 | Prompt Inspector enabled while queue has items (SAFE-03, pause) | `toastr.warning`: `Queue paused: Prompt Inspector is on. Turn it off, then resume.` |
-| Queue start attempted while Prompt Inspector is enabled (SAFE-03, refuse) | `toastr.warning`: `Can't start the queue while Prompt Inspector is on.` Fired from the control click, the wand "Queue swipe" entry, `/queueswipe`, and Resume. Items are **not** added |
-| Second tab opens a chat whose queue another tab owns (SAFE-04) | `toastr.info`: `This chat's queue is running in another tab. Showing it read-only here.` Once per chat load in that tab |
+| Queue start attempted while Prompt Inspector is enabled (SAFE-03, refuse) | `toastr.warning`: `Can't start the queue while Prompt Inspector is on. Turn it off, then try again.` Fired from the control click, the wand "Queue swipe" entry, `/queueswipe`, and Resume. Items are **not** added |
+| Second tab opens a chat whose queue another tab owns (SAFE-04) | `toastr.info`: `This chat's queue is managed in another tab. Showing it read-only here.` Once per chat load in that tab |
 | Read-only tab becomes owner (owner tab closed) | `toastr.info`: `This tab now manages the queue. It is paused; resume from the queue badge.` |
 | Native Stop pressed (GUARD-06) | No toast. Native Stop ends the user's own generation; queued items are untouched and the queue resumes as it does after any native generation. Queue cancel keeps Phase 3's coalesced `cancelled` reporting |
 | Native send/swipe/continue starts mid-queue (GUARD-01) | No toast. This is a transient native pause, shown only through the dropdown status line |
@@ -139,7 +140,7 @@ All strings are static literals. Interpolated values are numbers or ST-provided 
 | Dropdown status line, read-only | `Managed in another tab` |
 | Progress-bar label, paused | `Paused · {completed} / {total}` |
 | Progress-bar label, read-only | `{completed} / {total}` (unchanged format; read-only is shown by the missing controls and the badge lock icon) |
-| Control tooltip, read-only tab | `Queue is running in another tab` |
+| Control tooltip, read-only tab | `Queue is managed in another tab` |
 | Control tooltip, Prompt Inspector on | `Turn off Prompt Inspector to queue swipes` |
 | Badge tooltip, paused | `Queue paused ({reason})` |
 
@@ -176,8 +177,10 @@ The Phase 3 "Notification style" setting (`All` / `Errors only` / `Off`) continu
 | Running (Phase 3) | spinner + count | rows + Cancel running + Cancel all | fill + `c / t` + Stop | normal |
 | Waiting for native generation (GUARD-01) | count (no spinner unless an in-flight item is still generating) | status line `Waiting for your generation to finish` + Phase 3 buttons | unchanged | normal |
 | Paused (`restored` / `failures` / `connection` / `inspector` / `takeover`) | `fa-pause` + count, tooltip `Queue paused ({reason})` | status line `Paused: {reason}`, **Resume queue** button (neutral) above Cancel all; rows keep their per-item × | `.qs-progress-bar--paused`: label `Paused · c / t`, fill at 50% opacity, **Resume** (`fa-play`, tooltip `Resume queue`) to the left of Stop | normal (adding to a paused queue is allowed and does not resume it) |
-| Read-only, second tab (SAFE-04) | `fa-lock` + count (spinner instead of lock while the owner is generating is **not** shown; lock always wins) | status line `Managed in another tab`; rows have **no** ×; **no** Cancel running, Cancel all or Resume buttons | label `c / t`, **no** Stop and **no** Resume button | `.qs-queue-control--disabled`, tooltip `Queue is running in another tab`; clicks no-op |
-| Prompt Inspector on, queue empty | hidden | n/a | hidden | `.qs-queue-control--disabled`, tooltip `Turn off Prompt Inspector to queue swipes`; click fires the refuse toast |
+| Read-only, second tab (SAFE-04) | `fa-lock` + count (spinner instead of lock while the owner is generating is **not** shown; lock always wins) | status line `Managed in another tab`; rows have **no** ×; **no** Cancel running, Cancel all or Resume buttons | label `c / t`, **no** Stop and **no** Resume button | `.qs-queue-control--disabled`, tooltip `Queue is managed in another tab`; clicks no-op |
+| Prompt Inspector on (queue empty or paused with reason `inspector`) | hidden when empty; otherwise as Paused row | n/a when empty; otherwise as Paused row | hidden when empty; otherwise as Paused row | `.qs-queue-control--disabled`, tooltip `Turn off Prompt Inspector to queue swipes`; click fires the refuse toast. This overrides the Paused row's "normal" control |
+
+**Accessible names:** `.qs-progress-bar-resume` gets `title="Resume queue"` and `aria-label="Resume queue"`. The badge's `aria-label` matches its tooltip (`Queue paused ({reason})` or `Queue is managed in another tab`). Follow the same pattern as the Phase 3 Stop and × controls.
 
 ### Resume / discard popup (PERS-02, PERS-03)
 
@@ -233,7 +236,7 @@ The Phase 3 "Notification style" setting (`All` / `Errors only` / `Off`) continu
 |------|--------|
 | Owner | One tab owns a chat's queue. The others render the read-only row of the state table |
 | Read-only display | The count, spinner/lock and `c / t` update live from the owner's state. Read-only tabs never write `chat_metadata` for the queue |
-| Slash commands in a read-only tab | `/queueswipe` and `/queuecancel` toast `This chat's queue is running in another tab.` (`toastr.warning`) and change nothing; `/queuestatus` works and returns the read-only status form |
+| Slash commands in a read-only tab | `/queueswipe` and `/queuecancel` toast `This chat's queue is managed in another tab.` (`toastr.warning`) and change nothing; `/queuestatus` works and returns the read-only status form |
 | Takeover | When the owner tab goes away, a read-only tab becomes owner in the paused state (`takeover`) and shows the takeover toast. It does **not** open the resume popup and does not auto-run |
 
 ### Lifecycle clears (GUARD-02, GUARD-03)
@@ -256,12 +259,12 @@ The Phase 3 "Notification style" setting (`All` / `Errors only` / `Off`) continu
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS (flags folded in)
+- [x] Dimension 2 Visuals: PASS (flags folded in)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
 **Approval:** pending
 
