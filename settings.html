@@ -1,0 +1,28 @@
+<div class="qs-settings">
+  <div class="inline-drawer">
+    <div class="inline-drawer-toggle inline-drawer-header">
+      <b>Queued Swipes</b>
+      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+      <label class="checkbox_label">
+        <input id="qs_enabled" type="checkbox" />
+        <span>Enable queued swipes</span>
+      </label>
+      <label for="qs_max_queue">Max queue size</label>
+      <input id="qs_max_queue" type="number" min="1" max="20" />
+      <label class="checkbox_label">
+        <input id="qs_auto_jump" type="checkbox" />
+        <span>Jump to newest swipe on completion</span>
+      </label>
+      <label for="qs_notification_style">Notification style</label>
+      <select id="qs_notification_style">
+        <option value="all">All</option>
+        <option value="errors">Errors only</option>
+        <option value="off">Off</option>
+      </select>
+      <label for="qs_circuit_breaker">Pause after N consecutive failures</label>
+      <input id="qs_circuit_breaker" type="number" min="1" max="10" />
+    </div>
+  </div>
+</div>

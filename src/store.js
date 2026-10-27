@@ -109,6 +109,19 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     return effectiveCap();
   }
 
+  // Changes the configured cap on the already-constructed store instance, so a settings-panel
+  // edit (SET-01/D-12) takes effect on the very next add()/getMaxQueueSize() call — no reload,
+  // no re-creating the store. Reassigns the function's own `maxQueueSize` parameter, which
+  // effectiveCap() already closes over, so no new internal variable is needed. Silently no-ops
+  // on a non-finite input rather than letting a bad write corrupt the cap (T-03-04-05).
+  // notify()s the same listeners add()/markRunning()/markDone()/drop() already notify, so a
+  // UI subscribed via onChange() re-renders against the new effectiveCap() immediately.
+  function setMaxQueueSize(n) {
+    if (!Number.isFinite(n)) return;
+    maxQueueSize = n;
+    notify();
+  }
+
   return {
     add,
     peekNext,
@@ -121,5 +134,6 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     onChange,
     offChange,
     getMaxQueueSize,
+    setMaxQueueSize,
   };
 }

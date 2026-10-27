@@ -1,5 +1,6 @@
 // Wiring-only entry point. Construction of real modules happens here; no logic lives in this file.
 import * as bridge from './src/st-bridge.js';
+import { MODULE_NAME } from './src/st-bridge.js';
 import { createStore } from './src/store.js';
 import { createRunner } from './src/runner.js';
 import { createGuard } from './src/guard.js';
@@ -8,13 +9,16 @@ import { registerQueueControl } from './src/ui.js';
 import { registerCommands } from './src/commands.js';
 import { registerWandMenu } from './src/wandMenu.js';
 import { registerProgressBar } from './src/progressBar.js';
+import { registerSettingsPanel } from './src/settings.js';
 import { cancelAll } from './src/queueActions.js';
 import { capture, send, cleanAndExtract, isSuccessful } from './src/adapter.js';
 
-const MODULE_NAME = 'queuedSwipes';
-
 const DEFAULT_SETTINGS = {
   maxQueueSize: 5,
+  enabled: true,
+  autoJump: false,
+  notificationStyle: 'all',
+  circuitBreakerThreshold: 3,
 };
 
 /**
@@ -84,4 +88,5 @@ export async function init() {
   registerCommands({ store, runner, cancelAll });
   registerWandMenu({ store, runner, cancelAll, canQueue: bridge.canQueue });
   registerProgressBar({ store, runner, cancelAll });
+  await registerSettingsPanel({ store });
 }

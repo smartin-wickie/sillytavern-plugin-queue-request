@@ -136,4 +136,43 @@ describe('createStore', () => {
     store.markDone(a.id);
     expect(cb).toHaveBeenCalledTimes(2);
   });
+
+  it('setMaxQueueSize(n) changes what getMaxQueueSize() returns and what add() enforces on the very next call', () => {
+    const store = createStore({ bridge: makeFakeBridge(), maxQueueSize: 2 });
+    store.add(fp(0));
+    store.add(fp(1));
+    expect(store.getMaxQueueSize()).toBe(2);
+
+    const blocked = store.add(fp(2));
+    expect(blocked).toEqual({ ok: false, reason: 'max' });
+
+    store.setMaxQueueSize(3);
+    expect(store.getMaxQueueSize()).toBe(3);
+
+    const allowed = store.add(fp(2));
+    expect(allowed.ok).toBe(true);
+    expect(store.getItems()).toHaveLength(3);
+  });
+
+  it('setMaxQueueSize(25) is still re-clamped against HARD_MAX_QUEUE, same as the constructor path', () => {
+    const store = createStore({ bridge: makeFakeBridge(), maxQueueSize: 5 });
+    store.setMaxQueueSize(25);
+    expect(store.getMaxQueueSize()).toBe(HARD_MAX_QUEUE);
+  });
+
+  it('setMaxQueueSize(n) fires onChange listeners; a non-finite n silently no-ops', () => {
+    const store = createStore({ bridge: makeFakeBridge(), maxQueueSize: 5 });
+    const cb = vi.fn();
+    store.onChange(cb);
+
+    store.setMaxQueueSize(10);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(store.getMaxQueueSize()).toBe(10);
+
+    store.setMaxQueueSize(NaN);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(store.getMaxQueueSize()).toBe(10);
+
+    store.offChange(cb);
+  });
 });
