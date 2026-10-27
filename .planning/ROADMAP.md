@@ -104,7 +104,18 @@ Plans:
   4. The queue pauses with a notification after N consecutive failures (no automatic retries), when API/model/preset changed since queueing, and while Prompt Inspector is enabled
   5. With the same chat open in two tabs, only one tab runs the queue and the other shows state read-only
 
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+
+- [ ] 04-01-PLAN.md — Reason-set runner pause, park-then-check, native-only guard resume, idle watchdog (GUARD-01, GUARD-06)
+- [ ] 04-02-PLAN.md — Lifecycle clears on edit/delete/send, Continue re-fingerprint (GUARD-02)
+- [ ] 04-03-PLAN.md — chat_metadata persistence, chat-switch handler, validated load (GUARD-03, PERS-01, PERS-04)
+- [ ] 04-04-PLAN.md — Resume/discard popup and paused UI states (PERS-02, PERS-03)
+- [ ] 04-05-PLAN.md — Circuit breaker, Prompt Inspector refuse/pause, shared enqueue (SAFE-01, SAFE-03)
+- [ ] 04-06-PLAN.md — Connection-change pause and popup (SAFE-02)
+- [ ] 04-07-PLAN.md — Cross-tab lease ownership, takeover, demotion (SAFE-04)
+- [ ] 04-08-PLAN.md — Read-only tab mirror and UI, live smoke checkpoint (SAFE-04)
+
 **UI hint**: yes
 
 ### Phase 5: Compatibility & Release
