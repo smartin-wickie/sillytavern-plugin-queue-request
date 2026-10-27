@@ -5,6 +5,9 @@ import { createRunner } from './src/runner.js';
 import { createGuard } from './src/guard.js';
 import { appendSwipe } from './src/appender.js';
 import { registerQueueControl } from './src/ui.js';
+import { registerCommands } from './src/commands.js';
+import { registerWandMenu } from './src/wandMenu.js';
+import { cancelAll } from './src/queueActions.js';
 import { capture, send, cleanAndExtract, isSuccessful } from './src/adapter.js';
 
 const MODULE_NAME = 'queuedSwipes';
@@ -77,4 +80,6 @@ export async function init() {
   guard.start();
 
   registerQueueControl({ store, runner });
+  registerCommands({ store, runner, cancelAll });
+  registerWandMenu({ store, runner, cancelAll, canQueue: bridge.canQueue });
 }
