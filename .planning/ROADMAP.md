@@ -107,13 +107,36 @@ Plans:
 **Plans**: 8 plans
 Plans:
 
+**Wave 1**
+
 - [ ] 04-01-PLAN.md — Reason-set runner pause, park-then-check, native-only guard resume, idle watchdog (GUARD-01, GUARD-06)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 04-02-PLAN.md — Lifecycle clears on edit/delete/send, Continue re-fingerprint (GUARD-02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 04-03-PLAN.md — chat_metadata persistence, chat-switch handler, validated load (GUARD-03, PERS-01, PERS-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 04-04-PLAN.md — Resume/discard popup and paused UI states (PERS-02, PERS-03)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 04-05-PLAN.md — Circuit breaker, Prompt Inspector refuse/pause, shared enqueue (SAFE-01, SAFE-03)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 04-06-PLAN.md — Connection-change pause and popup (SAFE-02)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 04-07-PLAN.md — Cross-tab lease ownership, takeover, demotion (SAFE-04)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 04-08-PLAN.md — Read-only tab mirror and UI, live smoke checkpoint (SAFE-04)
 
 **UI hint**: yes
