@@ -21,3 +21,64 @@
   right: -4px;
   color: inherit;
 }
+
+/* Cancel dropdown (D-01-D-04): anchored to the badge, not a modal popup. */
+.qs-queue-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  margin-top: 4px;
+  padding: 16px;
+  /* Reuse ST's existing popup/dropdown surface styling (its own context-menu/Extensions-drawer
+     background+border), per 03-UI-SPEC.md Color (Secondary 30%) — exact variable name pending
+     live confirmation against ST 1.19.0 (Task 3 checkpoint), not guessed from memory. */
+  background: var(--SmartThemeBlurTintColor);
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.qs-queue-dropdown--open {
+  display: block;
+}
+
+.qs-dropdown-header {
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.qs-dropdown-rows {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.qs-dropdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.qs-dropdown-cancel-item {
+  cursor: pointer;
+  /* Destructive reservation (per-item cancel) — exact variable pending live confirmation
+     against ST 1.19.0 (Task 3 checkpoint), per 03-UI-SPEC.md Color (Destructive). */
+  color: var(--crimson70a);
+}
+
+.qs-dropdown-cancel-running,
+.qs-dropdown-cancel-all {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  cursor: pointer;
+  /* Destructive reservation (Cancel running / Cancel all) — exact variable pending live
+     confirmation against ST 1.19.0 (Task 3 checkpoint), per 03-UI-SPEC.md Color (Destructive). */
+  color: var(--crimson70a);
+  background: transparent;
+  border: 1px solid var(--crimson70a);
+  border-radius: 4px;
+}

@@ -1,10 +1,20 @@
 import { ctx, canQueue, eventSource, event_types } from './st-bridge.js';
 import { buildFingerprint } from './fingerprint.js';
+import { cancelAll } from './queueActions.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
 const CONTROL_DISABLED_CLASS = 'qs-queue-control--disabled';
 const BADGE_CLASS = 'qs-queue-badge';
 const IDLE_TITLE = 'Queue a swipe';
+
+// Cancel dropdown (D-01-D-04): anchored to the badge, never a modal popup.
+const DROPDOWN_CLASS = 'qs-queue-dropdown';
+const DROPDOWN_OPEN_CLASS = 'qs-queue-dropdown--open';
+const DROPDOWN_ROWS_CLASS = 'qs-dropdown-rows';
+const DROPDOWN_ROW_CLASS = 'qs-dropdown-row';
+const DROPDOWN_CANCEL_ITEM_CLASS = 'qs-dropdown-cancel-item';
+const DROPDOWN_CANCEL_RUNNING_CLASS = 'qs-dropdown-cancel-running';
+const DROPDOWN_CANCEL_ALL_CLASS = 'qs-dropdown-cancel-all';
 
 // GUARD-05's 3 locked toast variants (D-08/D-09) — static literals selected by a reason-code
 // lookup, never string-built from the underlying error object. 'stale' (and any other
@@ -37,7 +47,7 @@ function injectControl(store, runner) {
   }
 
   if (!swipeRightEl || lastMes.querySelector(`.${CONTROL_CLASS}`)) {
-    renderQueueState(store);
+    renderQueueState(store, runner);
     return;
   }
 
@@ -49,17 +59,18 @@ function injectControl(store, runner) {
 
   swipeRightEl.insertAdjacentElement('afterend', control);
 
-  renderQueueState(store);
+  renderQueueState(store, runner);
 }
 
 // Re-render the badge and disabled/tooltip state onto the control inside the current `.last_mes`
 // — never a document-wide lookup, which would match an orphaned control still sitting on an
 // earlier message first (document order). Looked up fresh every call, never a cached reference.
-function renderQueueState(store) {
+function renderQueueState(store, runner) {
   const control = document.querySelector('.last_mes')?.querySelector(`.${CONTROL_CLASS}`);
   if (!control) return;
   renderBadge(control, store);
   renderDisabledState(control, store);
+  renderDropdown(control, store, runner);
 }
 
 // UI-01: badge shows the live pending+running count, hidden entirely (never rendered as `0`)
@@ -77,6 +88,14 @@ function renderBadge(control, store) {
   if (!badge) {
     badge = document.createElement('span');
     badge.className = BADGE_CLASS;
+    // Toggle the cancel dropdown open/closed. stopPropagation() keeps this click from also
+    // reaching the document-level outside-click listener (registerQueueControl), which would
+    // otherwise immediately re-close the dropdown this same click just opened.
+    badge.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const panel = control.querySelector(`.${DROPDOWN_CLASS}`);
+      panel?.classList.toggle(DROPDOWN_OPEN_CLASS);
+    });
     control.appendChild(badge);
   }
 
@@ -108,6 +127,81 @@ function renderDisabledState(control, store) {
   }
 }
 
+// Cancel dropdown (D-01-D-04): anchored to the badge, lists every pending item with a
+// per-item cancel, plus Cancel running / Cancel all. The panel element is created once per
+// `control` and persists across re-renders (so toggling it open survives the next
+// store.onChange-triggered re-render); its row list is rebuilt from a fresh store.getItems()
+// read on every call, never a cached array.
+function renderDropdown(control, store, runner) {
+  let panel = control.querySelector(`.${DROPDOWN_CLASS}`);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = DROPDOWN_CLASS;
+    control.appendChild(panel);
+  }
+
+  // Built from DOM nodes/textContent only, never innerHTML with dynamic data (Security Domain
+  // V5/threat T-03-01-03) — rows carry only an ordinal label, never prompt/model text.
+  panel.textContent = '';
+
+  const header = document.createElement('div');
+  header.className = 'qs-dropdown-header';
+  header.appendChild(document.createTextNode('Queued swipes'));
+  panel.appendChild(header);
+
+  const rows = document.createElement('div');
+  rows.className = DROPDOWN_ROWS_CLASS;
+  const pending = store.getItems().filter((i) => i.status === 'queued');
+  pending.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = DROPDOWN_ROW_CLASS;
+    row.appendChild(document.createTextNode(`Swipe request ${index + 1}`));
+
+    const cancelItem = document.createElement('i');
+    cancelItem.className = `fa-solid fa-xmark ${DROPDOWN_CANCEL_ITEM_CLASS}`;
+    cancelItem.addEventListener('click', (event) => {
+      event.stopPropagation();
+      // T-03-01-01 (Pitfall 1): re-check status immediately before drop — the runner may have
+      // promoted this same item to 'running' between render and click. Silently no-op if so;
+      // the next re-render reflects reality and the user can use Cancel running instead.
+      const current = store.getItems().find((i) => i.id === item.id);
+      if (current?.status !== 'queued') return;
+      store.drop(item.id, 'cancelled');
+    });
+    row.appendChild(cancelItem);
+    rows.appendChild(row);
+  });
+  panel.appendChild(rows);
+
+  if (store.runningCount() > 0) {
+    const cancelRunning = document.createElement('button');
+    cancelRunning.type = 'button';
+    cancelRunning.className = DROPDOWN_CANCEL_RUNNING_CLASS;
+    cancelRunning.appendChild(document.createTextNode('Cancel running'));
+    cancelRunning.addEventListener('click', (event) => {
+      event.stopPropagation();
+      runner.abortRunning();
+    });
+    panel.appendChild(cancelRunning);
+  }
+
+  const cancelAllBtn = document.createElement('button');
+  cancelAllBtn.type = 'button';
+  cancelAllBtn.className = DROPDOWN_CANCEL_ALL_CLASS;
+  cancelAllBtn.appendChild(document.createTextNode('Cancel all'));
+  cancelAllBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    cancelAll(store, runner);
+  });
+  panel.appendChild(cancelAllBtn);
+
+  // Nothing left to anchor the dropdown to once pending+running drains to 0 — close it rather
+  // than render an empty "nothing queued" panel (UI-SPEC Copywriting Contract, empty state).
+  if (store.pendingCount() + store.runningCount() === 0) {
+    panel.classList.remove(DROPDOWN_OPEN_CLASS);
+  }
+}
+
 // Enqueue a swipe request for the latest message and wake the runner. Re-checks the same
 // full-queue condition renderDisabledState() uses before ever calling store.add() — a
 // disabled-looking-but-still-wired control is a real bug class, not just a cosmetic gap.
@@ -136,10 +230,10 @@ export function registerQueueControl({ store, runner }) {
   // The badge/disabled-state must also update on every queue mutation, not only on the DOM
   // re-render events above — a click that fills the queue must disable the control immediately,
   // without waiting for the next CHARACTER_MESSAGE_RENDERED/MESSAGE_SWIPED event.
-  store.onChange(() => renderQueueState(store));
+  store.onChange(() => renderQueueState(store, runner));
 
   // Correct on first render too, not only after the first onChange/re-render event fires.
-  renderQueueState(store);
+  renderQueueState(store, runner);
 
   // GUARD-05: render exactly one of the 3 locked toast strings per failed item, never raw
   // backend/error text. 'stale' drops are excluded upstream (runner.js) and never reach here.
@@ -147,5 +241,16 @@ export function registerQueueControl({ store, runner }) {
     const msg = FAILURE_MESSAGES[reason];
     if (!msg) return;
     toastr.warning(msg, undefined, { preventDuplicates: true });
+  });
+
+  // Cancel dropdown dismissal: any click outside both the dropdown panel and the badge that
+  // opens it closes every open dropdown instance, without cancelling anything (D-01, UI-SPEC
+  // "click outside closes it, no confirmation needed"). Registered once here, not per-control.
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target.closest?.(`.${DROPDOWN_CLASS}`) || target.closest?.(`.${BADGE_CLASS}`)) return;
+    document.querySelectorAll(`.${DROPDOWN_CLASS}.${DROPDOWN_OPEN_CLASS}`).forEach((panel) => {
+      panel.classList.remove(DROPDOWN_OPEN_CLASS);
+    });
   });
 }
