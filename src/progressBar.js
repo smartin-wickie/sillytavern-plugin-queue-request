@@ -4,10 +4,12 @@
 // APP_READY, like the wand menu: it has no per-chat state and hides itself at zero rather than
 // needing per-chat teardown.
 import { eventSource, event_types } from './st-bridge.js';
+import { resumeQueue } from './queueActions.js';
 
 const BAR_ID = 'qs-progress-bar';
 const BAR_CLASS = 'qs-progress-bar';
 const VISIBLE_CLASS = 'qs-progress-bar--visible';
+const PAUSED_CLASS = 'qs-progress-bar--paused';
 
 /**
  * Register the top-of-chat progress bar. `cancelAll` is injected (not re-derived) so the stop
@@ -28,9 +30,12 @@ export function registerProgressBar({ store, runner, cancelAll }) {
     const label = $('<span class="qs-progress-bar-label"></span>');
     const stop = $('<button type="button" class="qs-progress-bar-stop" title="Stop queue"><i class="fa-solid fa-stop"></i></button>');
 
-    stop.on('click', () => cancelAll(store, runner));
+    const resume = $('<button type="button" class="qs-progress-bar-resume" title="Resume queue" aria-label="Resume queue" hidden><i class="fa-solid fa-play"></i></button>');
 
-    bar.append(fill, label, stop);
+    stop.on('click', () => cancelAll(store, runner));
+    resume.on('click', () => resumeQueue(store, runner));
+
+    bar.append(fill, label, resume, stop);
 
     // Progress bar insertion point — exact selector pending live confirmation against ST
     // 1.19.0 (03-RESEARCH.md Open Question #2); falls back to inserting before #chat if
@@ -65,11 +70,17 @@ export function registerProgressBar({ store, runner, cancelAll }) {
 
     bar.classList.add(VISIBLE_CLASS);
     const total = completed + pending + running;
-    bar.querySelector('.qs-progress-bar-label').textContent = `${completed} / ${total}`;
+    const paused = (runner.getPauseReasons?.() ?? []).some((r) => r !== 'native');
+    bar.classList.toggle(PAUSED_CLASS, paused);
+    bar.querySelector('.qs-progress-bar-resume').hidden = !paused;
+    bar.querySelector('.qs-progress-bar-label').textContent = paused
+      ? `Paused · ${completed} / ${total}`
+      : `${completed} / ${total}`;
     bar.querySelector('.qs-progress-bar-fill').style.width = `${total > 0 ? (completed / total) * 100 : 0}%`;
   }
 
   store.onChange(update);
+  runner.onStateChange(update);
   runner.onItemDone(() => {
     completed += 1;
     update();

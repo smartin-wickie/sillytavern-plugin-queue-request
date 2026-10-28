@@ -1,6 +1,7 @@
 import { ctx, canQueue, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
 import { buildFingerprint } from './fingerprint.js';
-import { cancelAll } from './queueActions.js';
+import { cancelAll, resumeQueue } from './queueActions.js';
+import { pauseReasonLabel, statusLineFor } from './pauseLabels.js';
 import { createRunAccumulator } from './toastAccumulator.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
@@ -16,6 +17,21 @@ const DROPDOWN_ROW_CLASS = 'qs-dropdown-row';
 const DROPDOWN_CANCEL_ITEM_CLASS = 'qs-dropdown-cancel-item';
 const DROPDOWN_CANCEL_RUNNING_CLASS = 'qs-dropdown-cancel-running';
 const DROPDOWN_CANCEL_ALL_CLASS = 'qs-dropdown-cancel-all';
+const DROPDOWN_STATUS_CLASS = 'qs-dropdown-status';
+const DROPDOWN_RESUME_CLASS = 'qs-dropdown-resume';
+
+// The paused reason worth showing: anything except a bare 'native' wait (which is just a
+// "waiting for your generation" status line, not a user-actionable pause).
+function visiblePauseReason(runner) {
+  const reasons = runner.getPauseReasons?.() ?? [];
+  const actionable = reasons.filter((r) => r !== 'native');
+  if (actionable.length === 0) return null;
+  return runner.getPrimaryReason?.() ?? actionable[0];
+}
+
+function failureCount(runner) {
+  return runner.getFailureCount?.() ?? 0;
+}
 
 // UI-03's coalesced-summary reason labels — short form for the "{reasons}" slot in a combined
 // toast (e.g. "API error, empty reply"), distinct from any full-sentence per-item string since
@@ -80,7 +96,7 @@ export function injectControl(store, runner) {
 function renderQueueState(store, runner) {
   const control = document.querySelector('.last_mes')?.querySelector(`.${CONTROL_CLASS}`);
   if (!control) return;
-  renderBadge(control, store);
+  renderBadge(control, store, runner);
   renderDisabledState(control, store);
   renderDropdown(control, store, runner);
 }
@@ -88,7 +104,7 @@ function renderQueueState(store, runner) {
 // UI-01: badge shows the live pending+running count, hidden entirely (never rendered as `0`)
 // when the queue is empty. While an item is actively generating, a spinner icon is prepended
 // alongside the count; the control icon itself never spins or pulses (D-07).
-function renderBadge(control, store) {
+function renderBadge(control, store, runner) {
   const n = store.pendingCount() + store.runningCount();
   let badge = control.querySelector(`.${BADGE_CLASS}`);
 
@@ -114,10 +130,22 @@ function renderBadge(control, store) {
   // Built from DOM nodes, never `.innerHTML =`, even though `n` is always a small integer here
   // (Security Domain V5 — keep the pattern injection-safe regardless of the data source).
   badge.textContent = '';
-  if (store.runningCount() > 0) {
-    const spinner = document.createElement('i');
-    spinner.className = 'fa-solid fa-spinner fa-spin';
-    badge.appendChild(spinner);
+  const pausedReason = visiblePauseReason(runner);
+  if (pausedReason) {
+    const icon = document.createElement('i');
+    icon.className = 'fa-solid fa-pause';
+    badge.appendChild(icon);
+    const text = `Queue paused (${pauseReasonLabel(pausedReason, { failures: failureCount(runner) })})`;
+    badge.title = text;
+    badge.setAttribute('aria-label', text);
+  } else {
+    badge.removeAttribute('title');
+    badge.removeAttribute('aria-label');
+    if (store.runningCount() > 0) {
+      const spinner = document.createElement('i');
+      spinner.className = 'fa-solid fa-spinner fa-spin';
+      badge.appendChild(spinner);
+    }
   }
   badge.appendChild(document.createTextNode(String(n)));
 }
@@ -185,6 +213,26 @@ function renderDropdown(control, store, runner) {
   });
   panel.appendChild(rows);
 
+  const statusText = statusLineFor(runner.getPauseReasons?.() ?? [], { failures: failureCount(runner) });
+  if (statusText) {
+    const status = document.createElement('div');
+    status.className = DROPDOWN_STATUS_CLASS;
+    status.textContent = statusText;
+    panel.appendChild(status);
+  }
+
+  if (visiblePauseReason(runner)) {
+    const resumeBtn = document.createElement('button');
+    resumeBtn.type = 'button';
+    resumeBtn.className = DROPDOWN_RESUME_CLASS;
+    resumeBtn.textContent = 'Resume queue';
+    resumeBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      resumeQueue(store, runner);
+    });
+    panel.appendChild(resumeBtn);
+  }
+
   if (store.runningCount() > 0) {
     const cancelRunning = document.createElement('button');
     cancelRunning.type = 'button';
@@ -250,6 +298,7 @@ export function registerQueueControl({ store, runner }) {
   // re-render events above — a click that fills the queue must disable the control immediately,
   // without waiting for the next CHARACTER_MESSAGE_RENDERED/MESSAGE_SWIPED event.
   store.onChange(() => renderQueueState(store, runner));
+  runner.onStateChange(() => renderQueueState(store, runner));
 
   // Correct on first render too, not only after the first onChange/re-render event fires.
   renderQueueState(store, runner);

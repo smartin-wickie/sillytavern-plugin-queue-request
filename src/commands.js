@@ -4,6 +4,7 @@
 // calls the shared `cancelAll(store, runner)` helper from `queueActions.js`.
 import { ctx, extension_settings, MODULE_NAME } from './st-bridge.js';
 import { buildFingerprint } from './fingerprint.js';
+import { pauseReasonLabel } from './pauseLabels.js';
 
 /**
  * Register `/queueswipe [count]`, `/queuecancel`, `/queuestatus` via ST's SlashCommandParser.
@@ -88,9 +89,14 @@ export function registerCommands({ store, runner, cancelAll }) {
       const running = store.runningCount();
       const pending = store.pendingCount();
       const max = store.getMaxQueueSize();
+      const reasons = runner.getPauseReasons?.() ?? [];
+      const primary = reasons.some((r) => r !== 'native') ? runner.getPrimaryReason?.() : null;
+      const pausedSuffix = primary
+        ? `, paused (${pauseReasonLabel(primary, { failures: runner.getFailureCount?.() ?? 0 })})`
+        : '';
       const text = running + pending === 0
         ? 'Queue: empty.'
-        : `Queue: ${running} running, ${pending} pending (${max} max).`;
+        : `Queue: ${running} running, ${pending} pending (${max} max)${pausedSuffix}.`;
       toastr.info(text);
       return text;
     },

@@ -151,3 +151,41 @@
      destructive controls, per 03-UI-SPEC.md Color (Destructive). */
   color: var(--crimson70a);
 }
+
+/* Paused queue states: accent stays on the fill only; Resume controls are neutral. */
+.qs-progress-bar--paused .qs-progress-bar-fill {
+  opacity: 0.5;
+}
+
+.qs-progress-bar-resume {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 4px;
+}
+
+.qs-progress-bar-resume[hidden] {
+  display: none;
+}
+
+.qs-dropdown-status {
+  margin-top: 8px;
+}
+
+.qs-dropdown-resume {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  cursor: pointer;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 4px;
+}

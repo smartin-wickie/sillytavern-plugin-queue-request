@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from '../src/store.js';
-import { cancelAll } from '../src/queueActions.js';
+import { cancelAll, resumeQueue } from '../src/queueActions.js';
 
 function makeFakeBridge() {
   return {
@@ -62,5 +62,13 @@ describe('cancelAll', () => {
     // which then flows through processNext()'s own error-handling drop path.
     expect(store.getItems().find((i) => i.id === running.id).status).toBe('running');
     expect(runner.abortRunning).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resumeQueue', () => {
+  it('delegates to runner.resumeAll and returns its result', () => {
+    const runner = { resumeAll: vi.fn(() => 'woken') };
+    expect(resumeQueue({}, runner)).toBe('woken');
+    expect(runner.resumeAll).toHaveBeenCalledTimes(1);
   });
 });

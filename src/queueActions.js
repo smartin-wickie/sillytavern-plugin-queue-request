@@ -13,3 +13,11 @@ export function cancelAll(store, runner) {
   const { aborted } = runner.abortRunning();
   return pending.length + (aborted ? 1 : 0);
 }
+
+/**
+ * The single Resume entry point shared by the dropdown and the progress bar. Clears every pause
+ * reason on the runner and returns its wake promise.
+ */
+export function resumeQueue(store, runner) {
+  return runner.resumeAll();
+}
