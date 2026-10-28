@@ -109,7 +109,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Reason-set runner pause, park-then-check, native-only guard resume, idle watchdog (GUARD-01, GUARD-06)
+- [x] 04-01-PLAN.md — Reason-set runner pause, park-then-check, native-only guard resume, idle watchdog (GUARD-01, GUARD-06)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -162,5 +162,5 @@ Plans:
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
-| 4. Lifecycle, Persistence & Spend Safety | 0/TBD | Not started | - |
+| 4. Lifecycle, Persistence & Spend Safety | 1/8 | In Progress|  |
 | 5. Compatibility & Release | 0/TBD | Not started | - |

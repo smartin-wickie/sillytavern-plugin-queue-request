@@ -44,12 +44,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Lifecycle Guards
 
-- [ ] **GUARD-01**: When the user starts a manual send/swipe/continue, the in-flight item finishes in background (result parked), and remaining items wait until the manual generation ends
+- [x] **GUARD-01**: When the user starts a manual send/swipe/continue, the in-flight item finishes in background (result parked), and remaining items wait until the manual generation ends
 - [ ] **GUARD-02**: When the target message is edited or deleted, or the user sends a new message, pending items are cleared and a toast explains why
 - [ ] **GUARD-03**: When the user switches chats, the running item is aborted and pending items stay stored with the original chat
 - [ ] **GUARD-04**: Every append and save re-checks a chat identity token (chat id + `chat_metadata.integrity`) and target fingerprint; a mismatch discards the result instead of writing to the wrong chat
 - [ ] **GUARD-05**: A failed item (API error, empty reply, abort) is reported with a non-modal toast and dropped; remaining items continue
-- [ ] **GUARD-06**: Native Stop pressed by the user is distinguished from queue-initiated cancel
+- [x] **GUARD-06**: Native Stop pressed by the user is distinguished from queue-initiated cancel
 
 ### Persistence
 
@@ -142,10 +142,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-02 | Phase 3 | Pending |
 | UI-03 | Phase 3 | Pending |
 | SET-01 | Phase 3 | Pending |
-| GUARD-01 | Phase 4 | Pending |
+| GUARD-01 | Phase 4 | Complete |
 | GUARD-02 | Phase 4 | Pending |
 | GUARD-03 | Phase 4 | Pending |
-| GUARD-06 | Phase 4 | Pending |
+| GUARD-06 | Phase 4 | Complete |
 | PERS-01 | Phase 4 | Pending |
 | PERS-02 | Phase 4 | Pending |
 | PERS-03 | Phase 4 | Pending |
