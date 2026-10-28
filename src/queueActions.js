@@ -8,10 +8,10 @@ const INSPECTOR_REFUSE_TEXT = "Can't start the queue while Prompt Inspector is o
 
 // Injected once at init (and by tests): the ST bridge and the toast functions. Kept out of the
 // import graph so this module stays unit-testable without a live ST.
-let configured = { bridge: null, toast: null };
+let configured = { bridge: null, toast: null, gapWarner: null };
 
-export function configureQueueActions({ bridge, toast }) {
-  configured = { bridge, toast };
+export function configureQueueActions({ bridge, toast, gapWarner = null }) {
+  configured = { bridge, toast, gapWarner };
 }
 
 /**
@@ -20,7 +20,7 @@ export function configureQueueActions({ bridge, toast }) {
  * one fingerprint, bounded by the queue's remaining room, and wakes the runner once.
  */
 export function enqueue(store, runner, count = 1) {
-  const { bridge, toast } = configured;
+  const { bridge, toast, gapWarner } = configured;
   if (store.isReadOnly?.()) {
     toast?.warning?.(READONLY_TEXT);
     return { added: 0, requested: count, refused: 'readonly' };
@@ -28,6 +28,12 @@ export function enqueue(store, runner, count = 1) {
   if (bridge?.promptInspectorEnabled?.()) {
     toast?.warning?.(INSPECTOR_REFUSE_TEXT);
     return { added: 0, requested: count, refused: 'inspector' };
+  }
+  // A failing warner must never block queueing.
+  try {
+    gapWarner?.maybeWarn(bridge?.activeGaps?.(), toast);
+  } catch {
+    // ignored
   }
   const room = Math.max(0, store.getMaxQueueSize() - (store.pendingCount() + store.runningCount()));
   const toAdd = Math.min(count, room);

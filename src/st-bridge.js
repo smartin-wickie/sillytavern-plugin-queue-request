@@ -114,6 +114,56 @@ export function promptInspectorEnabled() {
   }
 }
 
+/** Is ST's auto-swipe (power user) setting on? Fails to false. */
+export function autoSwipeEnabled() {
+  try {
+    return ctx().powerUserSettings?.auto_swipe === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Is Chat Completion system-message squashing on? Chat Completion only. Fails to false. */
+export function squashEnabled() {
+  try {
+    return ctx().mainApi === 'openai' && oai_settings.squash_system_messages === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Display names of enabled third-party extensions that register a generate_interceptor naming
+ * an existing global function (excluding this extension). Fails to [].
+ */
+export function activeInterceptors() {
+  try {
+    const disabled = extension_settings.disabledExtensions ?? [];
+    const out = [];
+    for (const n of extensionNames ?? []) {
+      if (disabled.includes(n)) continue;
+      const m = getExtensionManifest(n);
+      const fn = m?.generate_interceptor;
+      if (!fn || typeof globalThis[fn] !== 'function') continue;
+      const name = m.display_name ?? fn;
+      if (name === 'Queued Swipes') continue;
+      out.push(name);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/** Snapshot of every known fidelity gap currently active. */
+export function activeGaps() {
+  return {
+    autoSwipe: autoSwipeEnabled(),
+    interceptors: activeInterceptors(),
+    squash: squashEnabled(),
+  };
+}
+
 /**
  * Feature-detect each re-exported ST import. Logs one console.warn per missing capability at
  * call time (not at module load), so a late ST API change surfaces only when actually probed.

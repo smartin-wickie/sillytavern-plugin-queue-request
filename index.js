@@ -7,6 +7,7 @@ import { createGuard } from './src/guard.js';
 import { createLifecycle } from './src/lifecycle.js';
 import { createOwnership } from './src/ownership.js';
 import { createMirror } from './src/mirror.js';
+import { createGapWarner } from './src/gapWarning.js';
 import { buildSnapshot, parseSnapshot } from './src/persistence.js';
 import { appendSwipe } from './src/appender.js';
 import { showResumePopup, showConnectionPopup } from './src/popups.js';
@@ -106,12 +107,19 @@ export async function init() {
     isOwner: () => ownership.isOwner(),
     getThreshold: () => bridge.extension_settings[MODULE_NAME]?.circuitBreakerThreshold,
   });
+  let sessionStorageHandle = null;
+  try {
+    sessionStorageHandle = window.sessionStorage;
+  } catch {
+    sessionStorageHandle = null;
+  }
   configureQueueActions({
     bridge,
     toast: {
       info: (m) => toastr.info(m, '', { preventDuplicates: true }),
-      warning: (m) => toastr.warning(m, '', { preventDuplicates: true }),
+      warning: (m, opts) => toastr.warning(m, '', { preventDuplicates: true, ...opts }),
     },
+    gapWarner: createGapWarner({ storage: sessionStorageHandle }),
   });
   const lifecycle = createLifecycle({
     bridge,

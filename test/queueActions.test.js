@@ -129,3 +129,59 @@ describe('resumeQueue', () => {
     expect(runner.resumeAll).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('enqueue gap warning', () => {
+  function setup(extra = {}) {
+    const bridge = { ...makeFakeBridge(), activeGaps: () => ({ autoSwipe: true }), ...extra };
+    const bctx = bridge.ctx;
+    bridge.ctx = () => ({ ...bctx(), chat: [{ mes: 'x', name: 'Bot', is_user: false, swipes: ['x'] }], chatId: 'c' });
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const runner = { wake: vi.fn() };
+    return { bridge, store, runner };
+  }
+
+  it('warns once per non-refused call', () => {
+    const { bridge, store, runner } = setup();
+    const gapWarner = { maybeWarn: vi.fn() };
+    const toast = { warning: vi.fn(), info: vi.fn() };
+    configureQueueActions({ bridge, toast, gapWarner });
+    const r = enqueue(store, runner, 1);
+    expect(r.added).toBe(1);
+    expect(gapWarner.maybeWarn).toHaveBeenCalledTimes(1);
+    expect(gapWarner.maybeWarn).toHaveBeenCalledWith({ autoSwipe: true }, toast);
+  });
+
+  it('does not warn when refused for inspector or readonly', () => {
+    const gapWarner = { maybeWarn: vi.fn() };
+    const toast = { warning: vi.fn(), info: vi.fn() };
+    const a = setup({ promptInspectorEnabled: () => true });
+    configureQueueActions({ bridge: a.bridge, toast, gapWarner });
+    expect(enqueue(a.store, a.runner, 1).refused).toBe('inspector');
+    const b = setup();
+    b.store.isReadOnly = () => true;
+    configureQueueActions({ bridge: b.bridge, toast, gapWarner });
+    expect(enqueue(b.store, b.runner, 1).refused).toBe('readonly');
+    expect(gapWarner.maybeWarn).not.toHaveBeenCalled();
+  });
+
+  it('still adds and wakes when the warner throws', () => {
+    const { bridge, store, runner } = setup();
+    const gapWarner = { maybeWarn: vi.fn(() => { throw new Error('x'); }) };
+    configureQueueActions({ bridge, toast: { warning: vi.fn(), info: vi.fn() }, gapWarner });
+    const r = enqueue(store, runner, 1);
+    expect(r.added).toBe(1);
+    expect(runner.wake).toHaveBeenCalled();
+  });
+
+  it('still adds when activeGaps throws', () => {
+    const { bridge, store, runner } = setup({ activeGaps: () => { throw new Error('x'); } });
+    configureQueueActions({ bridge, toast: { warning: vi.fn(), info: vi.fn() }, gapWarner: { maybeWarn: vi.fn() } });
+    expect(enqueue(store, runner, 1).added).toBe(1);
+  });
+
+  it('works with no gapWarner configured', () => {
+    const { bridge, store, runner } = setup();
+    configureQueueActions({ bridge, toast: { warning: vi.fn(), info: vi.fn() } });
+    expect(enqueue(store, runner, 1).added).toBe(1);
+  });
+});
