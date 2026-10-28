@@ -3,6 +3,7 @@
 // store.drop()/runner.abortRunning() with no new store API, per 03-RESEARCH.md Pattern 2.
 import { buildFingerprint } from './fingerprint.js';
 
+export const READONLY_TEXT = "This chat's queue is managed in another tab.";
 const INSPECTOR_REFUSE_TEXT = "Can't start the queue while Prompt Inspector is on. Turn it off, then try again.";
 
 // Injected once at init (and by tests): the ST bridge and the toast functions. Kept out of the
@@ -20,6 +21,10 @@ export function configureQueueActions({ bridge, toast }) {
  */
 export function enqueue(store, runner, count = 1) {
   const { bridge, toast } = configured;
+  if (store.isReadOnly?.()) {
+    toast?.warning?.(READONLY_TEXT);
+    return { added: 0, requested: count, refused: 'readonly' };
+  }
   if (bridge?.promptInspectorEnabled?.()) {
     toast?.warning?.(INSPECTOR_REFUSE_TEXT);
     return { added: 0, requested: count, refused: 'inspector' };
@@ -46,6 +51,10 @@ export function enqueue(store, runner, count = 1) {
  * pending items dropped here, plus 1 if a running item was actually aborted.
  */
 export function cancelAll(store, runner) {
+  if (store.isReadOnly?.()) {
+    configured.toast?.warning?.(READONLY_TEXT);
+    return 0;
+  }
   const pending = store.getItems().filter((i) => i.status === 'queued');
   for (const item of pending) store.drop(item.id, 'cancelled');
   const { aborted } = runner.abortRunning();
@@ -57,6 +66,10 @@ export function cancelAll(store, runner) {
  * reason on the runner and returns its wake promise. Refuses while Prompt Inspector is on.
  */
 export function resumeQueue(store, runner) {
+  if (store.isReadOnly?.()) {
+    configured.toast?.warning?.(READONLY_TEXT);
+    return undefined;
+  }
   if (configured.bridge?.promptInspectorEnabled?.()) {
     configured.toast?.warning?.(INSPECTOR_REFUSE_TEXT);
     return undefined;

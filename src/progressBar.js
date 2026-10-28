@@ -9,6 +9,7 @@ import { resumeQueue } from './queueActions.js';
 const BAR_ID = 'qs-progress-bar';
 const BAR_CLASS = 'qs-progress-bar';
 const VISIBLE_CLASS = 'qs-progress-bar--visible';
+const READONLY_CLASS = 'qs-progress-bar--readonly';
 const PAUSED_CLASS = 'qs-progress-bar--paused';
 
 /**
@@ -16,9 +17,6 @@ const PAUSED_CLASS = 'qs-progress-bar--paused';
  * control is behaviorally identical to every other cancel-all surface in this phase.
  */
 export function registerProgressBar({ store, runner, cancelAll }) {
-  let completed = 0;
-  let wasActive = false;
-
   // Idempotency guard: only ever insert the bar once, mirroring the wand-menu's own
   // `$('#qs-wand-entry').length` check (Pitfall 3 — DOM target may not exist yet at init()
   // time; guard against re-insertion on a later APP_READY-adjacent call instead).
@@ -57,8 +55,8 @@ export function registerProgressBar({ store, runner, cancelAll }) {
     const running = store.runningCount();
     const active = pending + running > 0;
 
-    if (!active && wasActive) completed = 0;
-    wasActive = active;
+    const completed = store.getCompleted();
+    const readOnly = store.isReadOnly();
 
     const bar = document.getElementById(BAR_ID);
     if (!bar) return;
@@ -70,7 +68,8 @@ export function registerProgressBar({ store, runner, cancelAll }) {
 
     bar.classList.add(VISIBLE_CLASS);
     const total = completed + pending + running;
-    const paused = (runner.getPauseReasons?.() ?? []).some((r) => r !== 'native');
+    bar.classList.toggle(READONLY_CLASS, readOnly);
+    const paused = !readOnly && (runner.getPauseReasons?.() ?? []).some((r) => r !== 'native');
     bar.classList.toggle(PAUSED_CLASS, paused);
     bar.querySelector('.qs-progress-bar-resume').hidden = !paused;
     bar.querySelector('.qs-progress-bar-label').textContent = paused
@@ -81,10 +80,7 @@ export function registerProgressBar({ store, runner, cancelAll }) {
 
   store.onChange(update);
   runner.onStateChange(update);
-  runner.onItemDone(() => {
-    completed += 1;
-    update();
-  });
+  store.onReadOnlyChange(update);
 
   eventSource.on(event_types.APP_READY, () => {
     render();

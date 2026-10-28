@@ -175,6 +175,11 @@
   display: none;
 }
 
+.qs-progress-bar--readonly .qs-progress-bar-stop,
+.qs-progress-bar--readonly .qs-progress-bar-resume {
+  display: none;
+}
+
 .qs-dropdown-status {
   margin-top: 8px;
 }

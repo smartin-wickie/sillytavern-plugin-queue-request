@@ -3,7 +3,7 @@
 // `/queueswipe`'s clamp math mirrors `ui.js`'s `onControlClick` exactly, and `/queuecancel`
 // calls the shared `cancelAll(store, runner)` helper from `queueActions.js`.
 import { extension_settings, MODULE_NAME } from './st-bridge.js';
-import { enqueue } from './queueActions.js';
+import { enqueue, READONLY_TEXT } from './queueActions.js';
 import { pauseReasonLabel } from './pauseLabels.js';
 
 /**
@@ -25,6 +25,10 @@ export function registerCommands({ store, runner, cancelAll }) {
       isRequired: false,
     })],
     callback: async (_namedArgs, unnamed) => {
+      if (store.isReadOnly()) {
+        toastr.warning(READONLY_TEXT);
+        return '0';
+      }
       // Gate on the Enable toggle directly (not st-bridge.js's canQueue()): canQueue() also
       // calls c.swipe?.isAllowed?.(), which ST's own isGenerating()/is_send_press check makes
       // false for the *entire* duration of any slash-command callback (confirmed live, 03-02's
@@ -67,6 +71,10 @@ export function registerCommands({ store, runner, cancelAll }) {
     helpString: 'Cancel all queued and the currently running swipe.',
     returns: 'number of items cancelled',
     callback: async () => {
+      if (store.isReadOnly()) {
+        toastr.warning(READONLY_TEXT);
+        return '0';
+      }
       const n = cancelAll(store, runner);
       toastr.info(n > 0 ? `Cancelled ${n} queued swipe(s).` : 'Queue is already empty.');
       return String(n);
@@ -81,6 +89,11 @@ export function registerCommands({ store, runner, cancelAll }) {
       const running = store.runningCount();
       const pending = store.pendingCount();
       const max = store.getMaxQueueSize();
+      if (store.isReadOnly()) {
+        const roText = `Queue: ${running} running, ${pending} pending (${max} max), managed in another tab.`;
+        toastr.info(roText);
+        return roText;
+      }
       const reasons = runner.getPauseReasons?.() ?? [];
       const primary = reasons.some((r) => r !== 'native') ? runner.getPrimaryReason?.() : null;
       const pausedSuffix = primary

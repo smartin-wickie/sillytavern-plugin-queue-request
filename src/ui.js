@@ -7,6 +7,8 @@ const CONTROL_CLASS = 'qs-queue-control';
 const CONTROL_DISABLED_CLASS = 'qs-queue-control--disabled';
 const BADGE_CLASS = 'qs-queue-badge';
 const IDLE_TITLE = 'Queue a swipe';
+const READONLY_TITLE = 'Queue is managed in another tab';
+const READONLY_STATUS = 'Managed in another tab';
 const INSPECTOR_TITLE = 'Turn off Prompt Inspector to queue swipes';
 
 // Cancel dropdown (D-01-D-04): anchored to the badge, never a modal popup.
@@ -131,7 +133,13 @@ function renderBadge(control, store, runner) {
   // (Security Domain V5 — keep the pattern injection-safe regardless of the data source).
   badge.textContent = '';
   const pausedReason = visiblePauseReason(runner);
-  if (pausedReason) {
+  if (store.isReadOnly()) {
+    const lock = document.createElement('i');
+    lock.className = 'fa-solid fa-lock';
+    badge.appendChild(lock);
+    badge.title = READONLY_TITLE;
+    badge.setAttribute('aria-label', READONLY_TITLE);
+  } else if (pausedReason) {
     const icon = document.createElement('i');
     icon.className = 'fa-solid fa-pause';
     badge.appendChild(icon);
@@ -160,7 +168,10 @@ function renderDisabledState(control, store) {
 
   // Prompt Inspector's toggle emits no event, so this render can lag until the next render
   // event; the click-time gate in enqueue() is the actual enforcement.
-  if (promptInspectorEnabled()) {
+  if (store.isReadOnly()) {
+    control.classList.add(CONTROL_DISABLED_CLASS);
+    control.title = READONLY_TITLE;
+  } else if (promptInspectorEnabled()) {
     control.classList.add(CONTROL_DISABLED_CLASS);
     control.title = INSPECTOR_TITLE;
   } else if (n >= maxQueueSize) {
@@ -196,11 +207,16 @@ function renderDropdown(control, store, runner) {
 
   const rows = document.createElement('div');
   rows.className = DROPDOWN_ROWS_CLASS;
+  const readOnly = store.isReadOnly();
   const pending = store.getItems().filter((i) => i.status === 'queued');
   pending.forEach((item, index) => {
     const row = document.createElement('div');
     row.className = DROPDOWN_ROW_CLASS;
     row.appendChild(document.createTextNode(`Swipe request ${index + 1}`));
+    if (readOnly) {
+      rows.appendChild(row);
+      return;
+    }
 
     const cancelItem = document.createElement('i');
     cancelItem.className = `fa-solid fa-xmark ${DROPDOWN_CANCEL_ITEM_CLASS}`;
@@ -218,12 +234,19 @@ function renderDropdown(control, store, runner) {
   });
   panel.appendChild(rows);
 
-  const statusText = statusLineFor(runner.getPauseReasons?.() ?? [], { failures: failureCount(runner) });
+  const statusText = readOnly
+    ? READONLY_STATUS
+    : statusLineFor(runner.getPauseReasons?.() ?? [], { failures: failureCount(runner) });
   if (statusText) {
     const status = document.createElement('div');
     status.className = DROPDOWN_STATUS_CLASS;
     status.textContent = statusText;
     panel.appendChild(status);
+  }
+
+  if (readOnly) {
+    if (store.pendingCount() + store.runningCount() === 0) panel.classList.remove(DROPDOWN_OPEN_CLASS);
+    return;
   }
 
   if (visiblePauseReason(runner)) {
@@ -277,6 +300,7 @@ function onControlClick(store, runner) {
   // setting flips off. This is the actual enforcement point — without it, a still-visible
   // stale control would successfully queue a swipe even with Enable unchecked (confirmed
   // live, SET-01 Task 3).
+  if (store.isReadOnly()) return;
   if (!canQueue()) return;
   const n = store.pendingCount() + store.runningCount();
   if (n >= store.getMaxQueueSize()) return;
@@ -299,6 +323,7 @@ export function registerQueueControl({ store, runner }) {
   // re-render events above — a click that fills the queue must disable the control immediately,
   // without waiting for the next CHARACTER_MESSAGE_RENDERED/MESSAGE_SWIPED event.
   store.onChange(() => renderQueueState(store, runner));
+  store.onReadOnlyChange(() => renderQueueState(store, runner));
   runner.onStateChange(() => renderQueueState(store, runner));
 
   // Correct on first render too, not only after the first onChange/re-render event fires.
