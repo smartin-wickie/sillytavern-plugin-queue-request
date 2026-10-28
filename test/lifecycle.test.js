@@ -849,6 +849,30 @@ describe('ownership integration', () => {
     expect(s.store.bindChat).not.toHaveBeenCalled();
   });
 
+  it('releases the old chat before going read-only in the sync prefix (WR-02)', () => {
+    const s = ownSetup();
+    s.eventSource.emit('CHAT_CHANGED');
+    expect(s.calls.indexOf('release')).toBeGreaterThan(-1);
+    expect(s.calls.indexOf('release')).toBeLessThan(s.calls.indexOf('ro:true'));
+  });
+
+  it('a read-only claim applies the owner snapshot of the new chat (WR-02)', async () => {
+    const s = ownSetup({ role: 'readonly', snapshot: builtSnapshot(2) });
+    s.store.applySnapshot = vi.fn();
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.applySnapshot).toHaveBeenCalledTimes(1);
+    expect(s.store.applySnapshot.mock.lastCall[0].items.map((i) => i.id)).toEqual(['p0', 'p1']);
+  });
+
+  it('a read-only claim with no snapshot applies nothing (WR-02)', async () => {
+    const s = ownSetup({ role: 'readonly' });
+    s.store.applySnapshot = vi.fn();
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.applySnapshot).not.toHaveBeenCalled();
+  });
+
   it('demotion drops the queue from the local chat metadata without saving (CR-02)', async () => {
     const s = ownSetup({ stored: blob(2) });
     s.state.ctx.saveChat = vi.fn();

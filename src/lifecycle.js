@@ -2,7 +2,7 @@
 // native Continue keeps them alive. Pure module (injected bridge/store/runner/toast) so it is
 // unit-testable without a live ST instance.
 import { buildFingerprint, fingerprintStatus } from './fingerprint.js';
-import { loadStored } from './persistence.js';
+import { loadStored, parseSnapshot } from './persistence.js';
 import { diffConnection } from './connection.js';
 
 const WATCHED_EVENTS = ['MESSAGE_EDITED', 'MESSAGE_DELETED', 'MESSAGE_SENT', 'MESSAGE_RECEIVED'];
@@ -133,9 +133,10 @@ export function createLifecycle({
     state.boundIntegrity = null;
     if (ownership) {
       // Closes the claim window: while unbound and unclaimed nothing may be enqueued or
-      // persisted, so a later rebind cannot overwrite an enqueue.
-      store.setReadOnly(true);
+      // persisted, so a later rebind cannot overwrite an enqueue. Release first: going
+      // read-only makes the mirror apply the stored snapshot, which must not be the old chat's.
       ownership.release();
+      store.setReadOnly(true);
     }
 
     schedule(() => {
@@ -161,6 +162,10 @@ export function createLifecycle({
           state.boundIntegrity = live.chatMetadata?.integrity ?? null;
           store.setReadOnly(true);
           dropLocalQueue();
+          // The store was already read-only (claim window), so the mirror saw no change; show
+          // the owner's current snapshot now instead of waiting for its next publish.
+          const parsed = parseSnapshot(ownership.readState?.()?.snapshot);
+          if (parsed) store.applySnapshot?.(parsed);
           toast(READONLY_TOAST);
           return;
         }
