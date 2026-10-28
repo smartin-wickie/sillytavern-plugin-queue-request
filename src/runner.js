@@ -132,6 +132,8 @@ export function createRunner({ bridge, store, generate, append }) {
     const mesId = item.fingerprint.mesId;
     let appended;
     try {
+      // The appender's saveChat then persists the queue without this item in the same write.
+      store.persistExcluding?.(item.id);
       appended = await flushAppend(mesId, result.text, result.meta);
     } catch (err) {
       const reason = extractReason(err);

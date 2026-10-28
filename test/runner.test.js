@@ -664,4 +664,23 @@ describe('createRunner', () => {
     expect(runner.getPauseReasons()).toEqual(['restored']);
     expect(store.getItems().find((i) => i.id === item.id).status).toBe('queued');
   });
+
+  it('calls store.persistExcluding(item.id) before the append', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+    const order = [];
+    const spy = vi.spyOn(store, 'persistExcluding').mockImplementation(() => order.push('persist'));
+    store.persistExcluding = spy;
+    const generate = vi.fn(async () => ({ text: 'x', meta: {} }));
+    const append = vi.fn(async () => {
+      order.push('append');
+      return 'ok';
+    });
+    const runner = createRunner({ bridge, store, generate, append });
+    await runner.wake();
+    expect(spy).toHaveBeenCalledWith(item.id);
+    expect(order).toEqual(['persist', 'append']);
+  });
 });

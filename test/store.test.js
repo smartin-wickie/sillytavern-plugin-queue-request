@@ -261,3 +261,104 @@ describe('store clear / refingerprintAll / onReset', () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('chat-bound persistence', () => {
+  function persistBridge(overrides = {}) {
+    const meta = { integrity: 'int-1' };
+    const c = {
+      chatId: 'chat-1',
+      chat: [{ name: 'Bot', mes: 'hi' }],
+      chatMetadata: meta,
+      saveChat: vi.fn(),
+      saveMetadataDebounced: vi.fn(),
+      ...overrides,
+    };
+    return { c, meta, bridge: { ctx: () => c, chatKey: () => 'av/chat-1' } };
+  }
+
+  it('is inert when unbound', () => {
+    const { c, meta, bridge } = persistBridge();
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(fp(0));
+    expect(c.saveChat).not.toHaveBeenCalled();
+    expect(meta.queuedSwipes).toBeUndefined();
+  });
+
+  it('add() writes metadata and saves immediately', () => {
+    const { c, meta, bridge } = persistBridge();
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('av/chat-1', 'int-1');
+    store.add(fp(0));
+    expect(c.saveChat).toHaveBeenCalledTimes(1);
+    expect(meta.queuedSwipes.items).toHaveLength(1);
+  });
+
+  it('drop() uses the debounced save and deletes the key when empty', () => {
+    const { c, meta, bridge } = persistBridge();
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('av/chat-1', 'int-1');
+    const { item } = store.add(fp(0));
+    store.drop(item.id, 'api');
+    expect(c.saveMetadataDebounced).toHaveBeenCalledTimes(1);
+    expect(meta.queuedSwipes).toBeUndefined();
+  });
+
+  it('refuses on key mismatch, empty chat, or integrity mismatch', () => {
+    const a = persistBridge();
+    const s1 = createStore({ bridge: { ...a.bridge, chatKey: () => 'other/chat' }, maxQueueSize: 5 });
+    s1.bindChat('av/chat-1', 'int-1');
+    s1.add(fp(0));
+    expect(a.c.saveChat).not.toHaveBeenCalled();
+
+    const b = persistBridge({ chat: [] });
+    const s2 = createStore({ bridge: b.bridge, maxQueueSize: 5 });
+    s2.bindChat('av/chat-1', 'int-1');
+    s2.add(fp(0));
+    expect(b.c.saveChat).not.toHaveBeenCalled();
+
+    const d = persistBridge();
+    const s3 = createStore({ bridge: d.bridge, maxQueueSize: 5 });
+    s3.bindChat('av/chat-1', 'int-OTHER');
+    s3.add(fp(0));
+    expect(d.c.saveChat).not.toHaveBeenCalled();
+    expect(d.meta.queuedSwipes).toBeUndefined();
+  });
+
+  it('swallows saveChat errors', () => {
+    const { bridge } = persistBridge({ saveChat: vi.fn(() => { throw new Error('boom'); }) });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('av/chat-1', 'int-1');
+    expect(store.add(fp(0)).ok).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('persistExcluding writes without saving', () => {
+    const { c, meta, bridge } = persistBridge();
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('av/chat-1', 'int-1');
+    const a = store.add(fp(0)).item;
+    store.add(fp(0));
+    c.saveChat.mockClear();
+    store.persistExcluding(a.id);
+    expect(meta.queuedSwipes.items).toHaveLength(1);
+    expect(c.saveChat).not.toHaveBeenCalled();
+    expect(c.saveMetadataDebounced).not.toHaveBeenCalled();
+  });
+
+  it('rebind replaces items, notifies once, fires onReset, never persists', () => {
+    const { c, bridge } = persistBridge();
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('av/chat-1', 'int-1');
+    const change = vi.fn();
+    const reset = vi.fn();
+    store.onChange(change);
+    store.onReset(reset);
+    store.rebind([{ id: 'x', status: 'queued', fingerprint: fp(0) }]);
+    expect(change).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(store.getItems().map((i) => i.id)).toEqual(['x']);
+    expect(c.saveChat).not.toHaveBeenCalled();
+    expect(c.saveMetadataDebounced).not.toHaveBeenCalled();
+  });
+});

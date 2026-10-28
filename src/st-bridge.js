@@ -55,6 +55,19 @@ export function swipeState() {
 }
 
 /**
+ * Stable identity of the live chat for persistence binding: avatar + '/' + chatId. Null for
+ * group chats or when the character or chat id is missing.
+ */
+export function chatKey(c) {
+  if (!c || c.groupId) return null;
+  if (c.characterId === undefined || c.characterId === null) return null;
+  if (!c.chatId) return null;
+  const avatar = c.characters?.[c.characterId]?.avatar;
+  if (!avatar) return null;
+  return `${avatar}/${c.chatId}`;
+}
+
+/**
  * The single QUEUE-08 visibility gate: is the latest message in the current chat eligible
  * for a queued swipe right now? Reuses ctx().swipe.isAllowed() as the primary signal rather
  * than re-deriving message-swipeable logic, and additionally excludes group chats explicitly
