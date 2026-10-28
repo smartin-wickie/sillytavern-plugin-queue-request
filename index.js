@@ -12,7 +12,7 @@ import { registerCommands } from './src/commands.js';
 import { registerWandMenu } from './src/wandMenu.js';
 import { registerProgressBar } from './src/progressBar.js';
 import { registerSettingsPanel } from './src/settings.js';
-import { cancelAll } from './src/queueActions.js';
+import { cancelAll, configureQueueActions } from './src/queueActions.js';
 import { capture, send, cleanAndExtract, isSuccessful } from './src/adapter.js';
 
 const DEFAULT_SETTINGS = {
@@ -86,7 +86,20 @@ export async function init() {
     maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize,
     moduleName: MODULE_NAME,
   });
-  const runner = createRunner({ bridge, store, generate, append: appendSwipe });
+  const runner = createRunner({
+    bridge,
+    store,
+    generate,
+    append: appendSwipe,
+    getThreshold: () => bridge.extension_settings[MODULE_NAME]?.circuitBreakerThreshold,
+  });
+  configureQueueActions({
+    bridge,
+    toast: {
+      info: (m) => toastr.info(m, '', { preventDuplicates: true }),
+      warning: (m) => toastr.warning(m, '', { preventDuplicates: true }),
+    },
+  });
   const lifecycle = createLifecycle({
     bridge,
     store,

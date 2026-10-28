@@ -111,6 +111,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
     runner.pause('restored');
     for (const r of ['failures', 'connection', 'takeover']) runner.resume(r);
     runner.invalidate();
+    runner.resetCounters?.();
     runner.abortRunning({ disposition: 'requeue' });
     store.unbind();
     store.rebind([]);

@@ -1,4 +1,4 @@
-import { canQueue, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
+import { canQueue, promptInspectorEnabled, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
 import { cancelAll, resumeQueue, enqueue } from './queueActions.js';
 import { pauseReasonLabel, statusLineFor } from './pauseLabels.js';
 import { createRunAccumulator } from './toastAccumulator.js';
@@ -7,6 +7,7 @@ const CONTROL_CLASS = 'qs-queue-control';
 const CONTROL_DISABLED_CLASS = 'qs-queue-control--disabled';
 const BADGE_CLASS = 'qs-queue-badge';
 const IDLE_TITLE = 'Queue a swipe';
+const INSPECTOR_TITLE = 'Turn off Prompt Inspector to queue swipes';
 
 // Cancel dropdown (D-01-D-04): anchored to the badge, never a modal popup.
 const DROPDOWN_CLASS = 'qs-queue-dropdown';
@@ -157,7 +158,12 @@ function renderDisabledState(control, store) {
   const n = store.pendingCount() + store.runningCount();
   const maxQueueSize = store.getMaxQueueSize();
 
-  if (n >= maxQueueSize) {
+  // Prompt Inspector's toggle emits no event, so this render can lag until the next render
+  // event; the click-time gate in enqueue() is the actual enforcement.
+  if (promptInspectorEnabled()) {
+    control.classList.add(CONTROL_DISABLED_CLASS);
+    control.title = INSPECTOR_TITLE;
+  } else if (n >= maxQueueSize) {
     control.classList.add(CONTROL_DISABLED_CLASS);
     control.title = `Queue full (${n}/${maxQueueSize})`;
   } else {
@@ -297,6 +303,18 @@ export function registerQueueControl({ store, runner }) {
 
   // Correct on first render too, not only after the first onChange/re-render event fires.
   renderQueueState(store, runner);
+
+  // Safety pauses always toast, regardless of the notification-style setting.
+  runner.onBreakerTrip(({ n }) => {
+    toastr.warning(
+      `Queue paused after ${n} failures in a row. Check your connection, then resume from the queue badge.`,
+      '',
+      { preventDuplicates: true },
+    );
+  });
+  runner.onInspectorPause(() => {
+    toastr.warning('Queue paused: Prompt Inspector is on. Turn it off, then resume.', '', { preventDuplicates: true });
+  });
 
   // UI-03: one coalesced summary toast per queue run, replacing Phase 2's per-item toast.
   const acc = createRunAccumulator();

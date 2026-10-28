@@ -241,6 +241,7 @@ describe('handleChatChanged', () => {
       pause: vi.fn(),
       resume: vi.fn(),
       invalidate: vi.fn(),
+      resetCounters: vi.fn(),
       abortRunning: vi.fn(),
     };
     const toast = vi.fn();
@@ -273,6 +274,12 @@ describe('handleChatChanged', () => {
     expect(s.runner.abortRunning).toHaveBeenCalledWith({ disposition: 'requeue' });
     expect(s.runner.resume.mock.calls.map((c) => c[0])).toEqual(['failures', 'connection', 'takeover']);
     expect(s.store.bindChat).not.toHaveBeenCalled();
+  });
+
+  it('a distinct chat switch resets the failure counters', () => {
+    const s = chatSetup({ stored: validBlob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    expect(s.runner.resetCounters).toHaveBeenCalledTimes(1);
   });
 
   it('never persists between unbind and bindChat', async () => {
