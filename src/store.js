@@ -74,6 +74,13 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     notify();
   }
 
+  function requeue(id) {
+    const item = findById(id);
+    if (!item || item.status !== 'running') return;
+    item.status = 'queued';
+    notify();
+  }
+
   function markDone(id) {
     const item = findById(id);
     if (!item) return;
@@ -126,6 +133,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     add,
     peekNext,
     markRunning,
+    requeue,
     markDone,
     drop,
     pendingCount,

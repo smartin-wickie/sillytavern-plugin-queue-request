@@ -32,21 +32,26 @@ export function buildFingerprint(ctx, mesId) {
 }
 
 /**
- * Re-validate `fp` against the *current* chat state. Always calls `bridge.ctx()` fresh
- * internally — never accepts a pre-fetched context object as its only data source — so this
- * naturally re-reads the live chat rather than comparing against a stale snapshot.
+ * Classify `fp` against the *current* chat state: 'chat' when the chat identity differs (a
+ * chat switch), 'target' when the same chat's target message changed, 'ok' when still valid.
+ * Always calls `bridge.ctx()` fresh internally, so it re-reads the live chat rather than
+ * comparing against a stale snapshot.
  */
-export function fingerprintMatches(bridge, fp) {
+export function fingerprintStatus(bridge, fp) {
   const ctx = bridge.ctx();
 
-  if ((ctx.chatId ?? null) !== fp.chatId) return false;
-  if ((ctx.chatMetadata?.integrity ?? null) !== fp.integrity) return false;
-  if (ctx.chat.length !== fp.chatLength) return false;
-  if (fp.mesId !== ctx.chat.length - 1) return false;
+  if ((ctx.chatId ?? null) !== fp.chatId) return 'chat';
+  if ((ctx.chatMetadata?.integrity ?? null) !== fp.integrity) return 'chat';
+  if (ctx.chat.length !== fp.chatLength) return 'target';
+  if (fp.mesId !== ctx.chat.length - 1) return 'target';
 
   const m = ctx.chat[fp.mesId];
-  if (!m) return false;
-  if (hash(m.swipes?.[0] ?? m.mes) !== fp.swipe0Hash) return false;
+  if (!m) return 'target';
+  if (hash(m.swipes?.[0] ?? m.mes) !== fp.swipe0Hash) return 'target';
 
-  return true;
+  return 'ok';
+}
+
+export function fingerprintMatches(bridge, fp) {
+  return fingerprintStatus(bridge, fp) === 'ok';
 }

@@ -175,4 +175,24 @@ describe('createStore', () => {
 
     store.offChange(cb);
   });
+
+  it('requeue(id) flips running back to queued and notifies once; other statuses and unknown ids no-op', () => {
+    const store = createStore({ bridge: makeFakeBridge(), maxQueueSize: 5 });
+    const a = store.add(fp()).item;
+    const b = store.add(fp()).item;
+    store.markRunning(a.id);
+    store.markDone(b.id);
+    const cb = vi.fn();
+    store.onChange(cb);
+
+    store.requeue(a.id);
+    expect(a.status).toBe('queued');
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    store.requeue(b.id);
+    store.requeue('nope');
+    store.requeue(a.id);
+    expect(b.status).toBe('done');
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
 });

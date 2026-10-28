@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFingerprint, fingerprintMatches, hash } from '../src/fingerprint.js';
+import { buildFingerprint, fingerprintMatches, fingerprintStatus, hash } from '../src/fingerprint.js';
 
 function makeCtx(overrides = {}) {
   return {
@@ -126,5 +126,37 @@ describe('fingerprintMatches', () => {
     ctx.chatMetadata.integrity = 'integrity-2';
     const bridge = makeBridge(ctx);
     expect(fingerprintMatches(bridge, fp)).toBe(false);
+  });
+});
+
+describe('fingerprintStatus', () => {
+  it("returns 'ok' when nothing changed and matches fingerprintMatches", () => {
+    const ctx = makeCtx();
+    const fp = buildFingerprint(ctx, 0);
+    const bridge = makeBridge(ctx);
+    expect(fingerprintStatus(bridge, fp)).toBe('ok');
+    expect(fingerprintMatches(bridge, fp)).toBe(true);
+  });
+
+  it("returns 'chat' for a different chatId or integrity", () => {
+    const ctx = makeCtx();
+    const fp = buildFingerprint(ctx, 0);
+    ctx.chatId = 'chat-2';
+    expect(fingerprintStatus(makeBridge(ctx), fp)).toBe('chat');
+    ctx.chatId = 'chat-1';
+    ctx.chatMetadata.integrity = 'other';
+    expect(fingerprintStatus(makeBridge(ctx), fp)).toBe('chat');
+  });
+
+  it("returns 'target' for edited text, extra message, or missing message", () => {
+    const ctx = makeCtx();
+    const fp = buildFingerprint(ctx, 0);
+    ctx.chat[0].mes = 'edited';
+    expect(fingerprintStatus(makeBridge(ctx), fp)).toBe('target');
+    ctx.chat[0].mes = 'hello world';
+    ctx.chat.push({ mes: 'x', name: 'U', is_user: true });
+    expect(fingerprintStatus(makeBridge(ctx), fp)).toBe('target');
+    ctx.chat.length = 0;
+    expect(fingerprintStatus(makeBridge(ctx), fp)).toBe('target');
   });
 });
