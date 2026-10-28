@@ -5,6 +5,7 @@ import { createStore } from './src/store.js';
 import { createRunner } from './src/runner.js';
 import { createGuard } from './src/guard.js';
 import { createLifecycle } from './src/lifecycle.js';
+import { createOwnership } from './src/ownership.js';
 import { appendSwipe } from './src/appender.js';
 import { showResumePopup, showConnectionPopup } from './src/popups.js';
 import { registerQueueControl } from './src/ui.js';
@@ -86,11 +87,21 @@ export async function init() {
     maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize,
     moduleName: MODULE_NAME,
   });
+  // Created before the runner so the runner can gate on it. A throwing localStorage property
+  // access yields a null storage, and the module then fails open (this tab runs as owner).
+  let storage = null;
+  try {
+    storage = window.localStorage;
+  } catch {
+    storage = null;
+  }
+  const ownership = createOwnership({ storage, win: window });
   const runner = createRunner({
     bridge,
     store,
     generate,
     append: appendSwipe,
+    isOwner: () => ownership.isOwner(),
     getThreshold: () => bridge.extension_settings[MODULE_NAME]?.circuitBreakerThreshold,
   });
   configureQueueActions({
@@ -104,12 +115,14 @@ export async function init() {
     bridge,
     store,
     runner,
+    ownership,
     moduleName: MODULE_NAME,
     popups: { showResume: showResumePopup, showConnection: showConnectionPopup },
     toast: (m) => toastr.info(m, '', { preventDuplicates: true }),
   });
   const guard = createGuard({ bridge, runner, lifecycle });
   guard.start();
+  ownership.start();
   lifecycle.start();
   // A chat may already be open when the extension initialises (CHAT_CHANGED already fired);
   // the dedupe in handleChatChanged makes repeated calls harmless.

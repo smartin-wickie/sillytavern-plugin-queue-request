@@ -535,3 +535,207 @@ describe('handleChatChanged', () => {
     });
   });
 });
+
+describe('ownership integration', () => {
+  const NOW = new Date('2026-10-27T12:00:00Z').getTime();
+  const READONLY = "This chat's queue is managed in another tab. Showing it read-only here.";
+  const TAKEOVER = 'This tab now manages the queue. It is paused; resume from the queue badge.';
+
+  function blob(n = 1) {
+    return {
+      version: 1,
+      items: Array.from({ length: n }, (_, i) => ({
+        id: `s${i}`,
+        createdAt: NOW - 1000,
+        target: { mesId: 1, chatLength: 2, swipe0Hash: hash('hello'), name: 'Bot' },
+        connection: { api: null, model: null, preset: null },
+      })),
+    };
+  }
+
+  function ownSetup({ role = 'owner', stored, snapshot } = {}) {
+    const chat = [
+      { name: 'u', mes: 'hi', is_user: true },
+      { name: 'Bot', mes: 'hello', swipes: ['hello'] },
+    ];
+    const state = {
+      ctx: { chatId: 'c1', chat, chatMetadata: { integrity: 'i1', queuedSwipes: stored } },
+      key: 'av/c1',
+    };
+    const eventSource = makeEventSource();
+    const bridge = {
+      eventSource,
+      event_types: { ...EVENT_TYPES, CHAT_CHANGED: 'CHAT_CHANGED' },
+      ctx: () => state.ctx,
+      chatKey: () => state.key,
+      isGenerating: () => false,
+    };
+    const calls = [];
+    const store = {
+      getItems: () => [],
+      clear: vi.fn(() => 0),
+      persist: vi.fn(),
+      unbind: vi.fn(),
+      rebind: vi.fn(),
+      bindChat: vi.fn(),
+      setReadOnly: vi.fn((f) => calls.push(`ro:${f}`)),
+    };
+    const runner = {
+      pause: vi.fn((r) => calls.push(`pause:${r}`)),
+      resume: vi.fn((r) => calls.push(`resume:${r}`)),
+      invalidate: vi.fn(() => calls.push('invalidate')),
+      resetCounters: vi.fn(),
+      abortRunning: vi.fn((o) => calls.push(`abort:${o?.disposition}`)),
+    };
+    let roleCb = null;
+    const ownership = {
+      claim: vi.fn(async () => {
+        calls.push('claim');
+        return { role };
+      }),
+      release: vi.fn(() => calls.push('release')),
+      onRoleChange: vi.fn((cb) => {
+        roleCb = cb;
+      }),
+      offRoleChange: vi.fn(),
+      readState: vi.fn(() => (snapshot ? { snapshot } : null)),
+    };
+    const toast = vi.fn();
+    const popups = { showResume: vi.fn(async () => 'dismiss') };
+    const lifecycle = createLifecycle({
+      bridge,
+      store,
+      runner,
+      toast,
+      moduleName: 'queuedSwipes',
+      popups,
+      ownership,
+    });
+    lifecycle.start();
+    return {
+      state,
+      eventSource,
+      store,
+      runner,
+      toast,
+      popups,
+      ownership,
+      lifecycle,
+      calls,
+      fireRole: (c) => roleCb(c),
+    };
+  }
+
+  beforeEach(() => vi.setSystemTime(NOW));
+
+  it('closes the claim window in the sync prefix and releases before claiming', async () => {
+    const s = ownSetup({ stored: blob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    expect(s.store.setReadOnly).toHaveBeenCalledWith(true);
+    expect(s.ownership.release).toHaveBeenCalledTimes(1);
+    expect(s.ownership.claim).not.toHaveBeenCalled();
+    await vi.runAllTimersAsync();
+    expect(s.calls.indexOf('release')).toBeLessThan(s.calls.indexOf('claim'));
+    expect(s.calls.indexOf('claim')).toBeLessThan(s.calls.indexOf('ro:false'));
+  });
+
+  it('owner claim loads the queue and offers the resume popup', async () => {
+    const s = ownSetup({ stored: blob(2) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.setReadOnly).toHaveBeenLastCalledWith(false);
+    expect(s.store.bindChat).toHaveBeenCalled();
+    expect(s.popups.showResume).toHaveBeenCalledTimes(1);
+  });
+
+  it('read-only claim does not load, prompt or resume, and toasts once', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.bindChat).not.toHaveBeenCalled();
+    expect(s.popups.showResume).not.toHaveBeenCalled();
+    expect(s.runner.resume).not.toHaveBeenCalledWith('restored');
+    expect(s.toast.mock.calls.filter((c) => c[0] === READONLY)).toHaveLength(1);
+    expect(s.store.setReadOnly).toHaveBeenLastCalledWith(true);
+    // Same-chat reload never re-claims or re-toasts.
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.ownership.claim).toHaveBeenCalledTimes(1);
+    expect(s.toast.mock.calls.filter((c) => c[0] === READONLY)).toHaveLength(1);
+  });
+
+  it('a newer CHAT_CHANGED invalidates a stale claim result', async () => {
+    const s = ownSetup({ stored: blob() });
+    let resolveFirst;
+    s.ownership.claim.mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)));
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.state.key = 'av/c2';
+    s.state.ctx = { ...s.state.ctx, chatId: 'c2', chatMetadata: { integrity: 'i2' } };
+    s.eventSource.emit('CHAT_CHANGED');
+    resolveFirst({ role: 'owner' });
+    await vi.runAllTimersAsync();
+    expect(s.store.bindChat).toHaveBeenCalledTimes(1);
+    expect(s.store.bindChat).toHaveBeenCalledWith('av/c2', 'i2');
+  });
+
+  it('takeover with items rebinds paused, toasts, and never opens a popup', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(2) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.calls.length = 0;
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    expect(s.store.setReadOnly).toHaveBeenLastCalledWith(false);
+    expect(s.store.rebind.mock.lastCall[0]).toHaveLength(2);
+    expect(s.calls.indexOf('pause:takeover')).toBeGreaterThan(-1);
+    expect(s.calls.indexOf('pause:takeover')).toBeLessThan(s.calls.indexOf('resume:restored'));
+    expect(s.toast).toHaveBeenCalledWith(TAKEOVER);
+    await vi.runAllTimersAsync();
+    expect(s.popups.showResume).not.toHaveBeenCalled();
+  });
+
+  it('takeover with an empty queue is silent and not paused', async () => {
+    const s = ownSetup({ role: 'readonly' });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    expect(s.toast).not.toHaveBeenCalledWith(TAKEOVER);
+    expect(s.runner.pause).not.toHaveBeenCalledWith('takeover');
+    expect(s.runner.resume).toHaveBeenCalledWith('restored');
+  });
+
+  it('takeover prefers a valid mirror snapshot over chat metadata', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(1), snapshot: blob(2) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    expect(s.store.rebind.mock.lastCall[0]).toHaveLength(2);
+  });
+
+  it('demotion invalidates, aborts with discard, then goes read-only, without a toast', async () => {
+    const s = ownSetup({ stored: blob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.calls.length = 0;
+    s.toast.mockClear();
+    s.fireRole({ role: 'readonly', reason: 'demoted' });
+    expect(s.calls).toEqual(['invalidate', 'abort:discard', 'ro:true']);
+    expect(s.toast).not.toHaveBeenCalled();
+  });
+
+  it('start and stop subscribe and unsubscribe the role listener', () => {
+    const s = ownSetup();
+    expect(s.ownership.onRoleChange).toHaveBeenCalledTimes(1);
+    s.lifecycle.stop();
+    expect(s.ownership.offRoleChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('no chat key leaves the store writable', async () => {
+    const s = ownSetup();
+    s.state.key = null;
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.ownership.claim).not.toHaveBeenCalled();
+    expect(s.store.setReadOnly).toHaveBeenLastCalledWith(false);
+  });
+});

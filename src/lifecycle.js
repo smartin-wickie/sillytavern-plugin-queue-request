@@ -18,7 +18,19 @@ const MESSAGES = {
  * exposes `getItems`/`clear`/`refingerprintAll`; `runner` exposes `invalidate`/`abortRunning`;
  * `toast(message)` shows a notification.
  */
-export function createLifecycle({ bridge, store, runner, toast, moduleName = 'queuedSwipes', promptResume, popups }) {
+const READONLY_TOAST = "This chat's queue is managed in another tab. Showing it read-only here.";
+const TAKEOVER_TOAST = 'This tab now manages the queue. It is paused; resume from the queue badge.';
+
+export function createLifecycle({
+  bridge,
+  store,
+  runner,
+  toast,
+  moduleName = 'queuedSwipes',
+  promptResume,
+  popups,
+  ownership,
+}) {
   const handlers = [];
   let continueTarget = null;
   const state = { boundKey: null, boundIntegrity: null };
@@ -119,6 +131,12 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
     store.rebind([]);
     state.boundKey = null;
     state.boundIntegrity = null;
+    if (ownership) {
+      // Closes the claim window: while unbound and unclaimed nothing may be enqueued or
+      // persisted, so a later rebind cannot overwrite an enqueue.
+      store.setReadOnly(true);
+      ownership.release();
+    }
 
     schedule(() => {
       if (token !== loadToken) return;
@@ -127,30 +145,90 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
       if (liveKey === null) {
         state.boundKey = null;
         state.boundIntegrity = null;
+        if (ownership) store.setReadOnly(false);
         runner.resume('restored');
         return;
       }
-      const liveIntegrity = live.chatMetadata?.integrity ?? null;
-      state.boundKey = liveKey;
-      state.boundIntegrity = liveIntegrity;
-      store.bindChat(liveKey, liveIntegrity);
-      const result = loadStored(live.chatMetadata?.[moduleName], live, Date.now(), { maxItems: 20 });
-      store.rebind(result.items);
-      if (result.dropped > 0) {
-        toast(`Dropped ${result.dropped} saved queued swipe(s): the message changed or they expired.`);
-        store.persist({ immediate: true });
-      }
-      if (result.items.length === 0) {
-        runner.resume('restored');
+      if (!ownership) {
+        loadChat(token);
         return;
       }
-      const prompt = popups?.showResume ? (info) => runResumePrompt(info, token, liveKey) : promptResume;
-      if (typeof prompt === 'function') {
-        schedule(() => {
-          if (token === loadToken) prompt({ count: result.items.length, items: result.items });
-        });
-      }
+      Promise.resolve(ownership.claim(liveKey)).then((result) => {
+        if (token !== loadToken) return;
+        if (result?.role === 'readonly') {
+          // Another tab owns this chat: stay inert and paused, no load and no popup.
+          state.boundKey = liveKey;
+          state.boundIntegrity = live.chatMetadata?.integrity ?? null;
+          store.setReadOnly(true);
+          toast(READONLY_TOAST);
+          return;
+        }
+        store.setReadOnly(false);
+        loadChat(token);
+      });
     });
+  }
+
+  // Binds the store to the live chat, loads the saved queue and offers the resume prompt.
+  function loadChat(token) {
+    const live = bridge.ctx();
+    const liveKey = bridge.chatKey?.(live) ?? null;
+    if (liveKey === null) {
+      runner.resume('restored');
+      return;
+    }
+    const liveIntegrity = live.chatMetadata?.integrity ?? null;
+    state.boundKey = liveKey;
+    state.boundIntegrity = liveIntegrity;
+    store.bindChat(liveKey, liveIntegrity);
+    const result = loadStored(live.chatMetadata?.[moduleName], live, Date.now(), { maxItems: 20 });
+    store.rebind(result.items);
+    if (result.dropped > 0) {
+      toast(`Dropped ${result.dropped} saved queued swipe(s): the message changed or they expired.`);
+      store.persist({ immediate: true });
+    }
+    if (result.items.length === 0) {
+      runner.resume('restored');
+      return;
+    }
+    const prompt = popups?.showResume ? (info) => runResumePrompt(info, token, liveKey) : promptResume;
+    if (typeof prompt === 'function') {
+      schedule(() => {
+        if (token === loadToken) prompt({ count: result.items.length, items: result.items });
+      });
+    }
+  }
+
+  // Ownership role changes. Takeover always lands paused with no popup and no auto-run;
+  // demotion makes this tab inert (no failure toast, no writes).
+  function onRoleChange({ role, reason } = {}) {
+    if (role === 'readonly') {
+      runner.invalidate();
+      runner.abortRunning({ disposition: 'discard' });
+      store.setReadOnly(true);
+      return;
+    }
+    if (role !== 'owner' || reason !== 'takeover') return;
+    if (state.boundKey === null) return;
+    const c = bridge.ctx();
+    if ((bridge.chatKey?.(c) ?? null) !== state.boundKey) return;
+    const integrity = c.chatMetadata?.integrity ?? null;
+    state.boundIntegrity = integrity;
+    store.setReadOnly(false);
+    store.bindChat(state.boundKey, integrity);
+    const snapshot = ownership?.readState?.()?.snapshot;
+    const source = Array.isArray(snapshot?.items) ? snapshot : c.chatMetadata?.[moduleName];
+    const result = loadStored(source, c, Date.now(), { maxItems: 20 });
+    store.rebind(result.items);
+    if (result.dropped > 0) store.persist({ immediate: true });
+    if (result.items.length > 0) {
+      // Pause before releasing the load hold so the runner cannot start an item in between.
+      runner.pause('takeover');
+      runner.resume('restored');
+      toast(TAKEOVER_TOAST);
+    } else {
+      runner.resume('restored');
+    }
   }
 
   // Resume prompt: deferred while a native generation runs, silent if the chat changed in the
@@ -162,6 +240,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
       return;
     }
     if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
+    if (store.isReadOnly?.()) return;
     const first = items[0]?.connection ?? null;
     const payload = { count, model: first?.model ?? null, api: first?.api ?? null };
     const current = bridge.connectionSnapshot?.() ?? null;
@@ -189,6 +268,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
 
   async function runConnectionPrompt({ changed, old, current }, key) {
     if (connectionPopupOpen || !popups?.showConnection) return;
+    if (store.isReadOnly?.()) return;
     if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
     connectionPopupOpen = true;
     let answer;
@@ -213,6 +293,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
 
   function start() {
     runner.onConnectionChanged?.(onConnectionChanged);
+    ownership?.onRoleChange(onRoleChange);
     for (const key of WATCHED_EVENTS) {
       const evt = bridge.event_types[key];
       if (!evt) continue;
@@ -229,6 +310,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
 
   function stop() {
     runner.offConnectionChanged?.(onConnectionChanged);
+    ownership?.offRoleChange(onRoleChange);
     for (const [evt, h] of handlers.splice(0, handlers.length)) {
       bridge.eventSource.removeListener(evt, h);
     }
