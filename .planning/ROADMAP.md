@@ -167,6 +167,8 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [ ] 05-03-PLAN.md — Live COMP-02 cascade test + folded Phase 4 HUMAN-UAT (COMP-02)
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 05-04-PLAN.md — Packaging decision, README, manifest, LICENSE (COMP-04)
 
 ## Progress
