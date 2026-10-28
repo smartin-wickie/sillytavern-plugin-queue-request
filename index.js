@@ -6,7 +6,7 @@ import { createRunner } from './src/runner.js';
 import { createGuard } from './src/guard.js';
 import { createLifecycle } from './src/lifecycle.js';
 import { appendSwipe } from './src/appender.js';
-import { showResumePopup } from './src/popups.js';
+import { showResumePopup, showConnectionPopup } from './src/popups.js';
 import { registerQueueControl } from './src/ui.js';
 import { registerCommands } from './src/commands.js';
 import { registerWandMenu } from './src/wandMenu.js';
@@ -105,7 +105,7 @@ export async function init() {
     store,
     runner,
     moduleName: MODULE_NAME,
-    popups: { showResume: showResumePopup },
+    popups: { showResume: showResumePopup, showConnection: showConnectionPopup },
     toast: (m) => toastr.info(m, '', { preventDuplicates: true }),
   });
   const guard = createGuard({ bridge, runner, lifecycle });
