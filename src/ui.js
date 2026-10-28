@@ -4,6 +4,8 @@ import { pauseReasonLabel, statusLineFor } from './pauseLabels.js';
 import { createRunAccumulator } from './toastAccumulator.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
+const RENDER_RETRY_MS = 250;
+const RENDER_RETRY_LIMIT = 20;
 const CONTROL_DISABLED_CLASS = 'qs-queue-control--disabled';
 const BADGE_CLASS = 'qs-queue-badge';
 const IDLE_TITLE = 'Queue a swipe';
@@ -318,13 +320,38 @@ export function registerQueueControl({ store, runner }) {
   eventSource.on(event_types.MESSAGE_SWIPED, render);
   eventSource.on(event_types.CHAT_CHANGED, render);
   eventSource.on(event_types.APP_READY, render);
+  // A native swipe fires MESSAGE_SWIPED while ST is busy, so canQueue() is false and the control
+  // is removed; a stopped generation renders no message, so nothing above restores it. ST clears
+  // its busy state some time after GENERATION_ENDED, so poll briefly until canQueue() holds.
+  const renderAfterGeneration = () => {
+    let tries = 0;
+    const tick = () => {
+      if (canQueue() || tries >= RENDER_RETRY_LIMIT) {
+        render();
+        return;
+      }
+      tries += 1;
+      setTimeout(tick, RENDER_RETRY_MS);
+    };
+    setTimeout(tick, 0);
+  };
+  eventSource.on(event_types.GENERATION_ENDED, renderAfterGeneration);
+  eventSource.on(event_types.GENERATION_STOPPED, renderAfterGeneration);
 
   // The badge/disabled-state must also update on every queue mutation, not only on the DOM
   // re-render events above — a click that fills the queue must disable the control immediately,
-  // without waiting for the next CHARACTER_MESSAGE_RENDERED/MESSAGE_SWIPED event.
-  store.onChange(() => renderQueueState(store, runner));
-  store.onReadOnlyChange(() => renderQueueState(store, runner));
-  runner.onStateChange(() => renderQueueState(store, runner));
+  // without waiting for the next CHARACTER_MESSAGE_RENDERED/MESSAGE_SWIPED event. A control that
+  // went missing (see above) is re-injected here rather than silently skipped.
+  const refresh = () => {
+    if (document.querySelector('.last_mes')?.querySelector(`.${CONTROL_CLASS}`)) {
+      renderQueueState(store, runner);
+    } else {
+      render();
+    }
+  };
+  store.onChange(refresh);
+  store.onReadOnlyChange(refresh);
+  runner.onStateChange(refresh);
 
   // Correct on first render too, not only after the first onChange/re-render event fires.
   renderQueueState(store, runner);
