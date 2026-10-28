@@ -10,12 +10,19 @@ export const HARD_MAX_QUEUE = 20;
 
 let fallbackCounter = 0;
 
+// Ids must stay unique across page loads, because restored items keep their saved ids.
+// crypto.randomUUID exists only in secure contexts, and ST is often opened over plain HTTP
+// on a LAN address, so the fallbacks are random too (never a bare per-load counter).
 function nextId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+  const c = typeof crypto !== 'undefined' ? crypto : undefined;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  if (typeof c?.getRandomValues === 'function') {
+    const bytes = c.getRandomValues(new Uint8Array(16));
+    return `item-${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`;
   }
   fallbackCounter += 1;
-  return `item-${fallbackCounter}`;
+  const rand = `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+  return `item-${Date.now().toString(36)}-${fallbackCounter}-${rand}`;
 }
 
 /**
@@ -208,9 +215,10 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     return items.find((item) => item.status === 'queued');
   }
 
+  // Only a queued item can start; never flip a finished one back to running.
   function markRunning(id) {
     const item = findById(id);
-    if (!item) return;
+    if (!item || item.status !== 'queued') return;
     item.status = 'running';
     notify();
   }

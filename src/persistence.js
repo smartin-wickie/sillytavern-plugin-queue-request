@@ -88,8 +88,12 @@ export function loadStored(raw, ctx, now = Date.now(), { maxItems = DEFAULT_MAX_
   const considered = raw.items.slice(0, Math.max(0, maxItems));
   const chat = Array.isArray(ctx?.chat) ? ctx.chat : [];
   const kept = [];
+  const seen = new Set();
   for (const it of considered) {
     if (!validShape(it)) continue;
+    // Item ids address the queue (run, cancel, done), so a duplicate would act on the wrong item.
+    if (seen.has(it.id)) continue;
+    seen.add(it.id);
     const age = now - it.createdAt;
     if (age > EXPIRY_MS) continue;
     if (-age > FUTURE_SKEW_MS) continue;
