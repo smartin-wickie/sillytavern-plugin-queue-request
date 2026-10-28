@@ -46,17 +46,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **GUARD-01**: When the user starts a manual send/swipe/continue, the in-flight item finishes in background (result parked), and remaining items wait until the manual generation ends
 - [x] **GUARD-02**: When the target message is edited or deleted, or the user sends a new message, pending items are cleared and a toast explains why
-- [ ] **GUARD-03**: When the user switches chats, the running item is aborted and pending items stay stored with the original chat
+- [x] **GUARD-03**: When the user switches chats, the running item is aborted and pending items stay stored with the original chat
 - [ ] **GUARD-04**: Every append and save re-checks a chat identity token (chat id + `chat_metadata.integrity`) and target fingerprint; a mismatch discards the result instead of writing to the wrong chat
 - [ ] **GUARD-05**: A failed item (API error, empty reply, abort) is reported with a non-modal toast and dropped; remaining items continue
 - [x] **GUARD-06**: Native Stop pressed by the user is distinguished from queue-initiated cancel
 
 ### Persistence
 
-- [ ] **PERS-01**: Pending queue is stored in the chat's `chat_metadata` (ids and timestamps only, no prompts) and survives a page refresh
+- [x] **PERS-01**: Pending queue is stored in the chat's `chat_metadata` (ids and timestamps only, no prompts) and survives a page refresh
 - [ ] **PERS-02**: On loading a chat with pending items, the queue starts paused and the user is asked to resume or discard (prompt shows count and model)
 - [ ] **PERS-03**: Returning to a chat with a stored queue offers the same resume/discard prompt
-- [ ] **PERS-04**: Stored items whose target no longer matches (message changed, deleted, expired) are dropped on load with a notice
+- [x] **PERS-04**: Stored items whose target no longer matches (message changed, deleted, expired) are dropped on load with a notice
 
 ### Spend Safety
 
@@ -144,12 +144,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SET-01 | Phase 3 | Pending |
 | GUARD-01 | Phase 4 | Complete |
 | GUARD-02 | Phase 4 | Complete |
-| GUARD-03 | Phase 4 | Pending |
+| GUARD-03 | Phase 4 | Complete |
 | GUARD-06 | Phase 4 | Complete |
-| PERS-01 | Phase 4 | Pending |
+| PERS-01 | Phase 4 | Complete |
 | PERS-02 | Phase 4 | Pending |
 | PERS-03 | Phase 4 | Pending |
-| PERS-04 | Phase 4 | Pending |
+| PERS-04 | Phase 4 | Complete |
 | SAFE-01 | Phase 4 | Pending |
 | SAFE-02 | Phase 4 | Pending |
 | SAFE-03 | Phase 4 | Pending |
