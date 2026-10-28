@@ -406,3 +406,44 @@ describe('store connection recording', () => {
     expect(items.find((i) => i.id === c.id).connection).toBeNull();
   });
 });
+
+describe('store read-only mode', () => {
+  it('refuses add() and persists nothing while read-only', () => {
+    const meta = { integrity: 'int-1' };
+    const c = {
+      chatId: 'chat-1',
+      chat: [{ name: 'Bot', mes: 'hi' }],
+      chatMetadata: meta,
+      saveChat: vi.fn(),
+      saveMetadataDebounced: vi.fn(),
+    };
+    const bridge = { ctx: () => c, chatKey: () => 'av/chat-1' };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('av/chat-1', 'int-1');
+    const { item } = store.add(fp(0));
+    c.saveChat.mockClear();
+    delete meta.queuedSwipes;
+
+    store.setReadOnly(true);
+    expect(store.isReadOnly()).toBe(true);
+    expect(store.add(fp(0))).toEqual({ ok: false, reason: 'readonly' });
+    store.persist({ immediate: true });
+    store.persistExcluding(item.id);
+    store.markDone(item.id);
+    expect(c.saveChat).not.toHaveBeenCalled();
+    expect(c.saveMetadataDebounced).not.toHaveBeenCalled();
+    expect(meta.queuedSwipes).toBeUndefined();
+
+    store.setReadOnly(false);
+    expect(store.add(fp(0)).ok).toBe(true);
+  });
+
+  it('notifies listeners when the flag changes', () => {
+    const store = createStore({ bridge: makeFakeBridge(), maxQueueSize: 5 });
+    const cb = vi.fn();
+    store.onChange(cb);
+    store.setReadOnly(true);
+    store.setReadOnly(true);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});

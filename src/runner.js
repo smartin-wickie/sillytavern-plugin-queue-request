@@ -40,7 +40,14 @@ function effectiveThreshold(getThreshold) {
   return Math.min(10, Math.max(1, Math.trunc(raw)));
 }
 
-export function createRunner({ bridge, store, generate, append, getThreshold = () => DEFAULT_THRESHOLD }) {
+export function createRunner({
+  bridge,
+  store,
+  generate,
+  append,
+  getThreshold = () => DEFAULT_THRESHOLD,
+  isOwner = () => true,
+}) {
   let running = false;
   const pauseReasons = new Set();
   const stateListeners = new Set();
@@ -94,6 +101,8 @@ export function createRunner({ bridge, store, generate, append, getThreshold = (
   }
 
   async function processNext() {
+    // A tab that does not own this chat's queue never starts an item (D-10).
+    if (!isOwner()) return false;
     const item = store.peekNext();
     if (!item) return false;
 
@@ -160,6 +169,13 @@ export function createRunner({ bridge, store, generate, append, getThreshold = (
     }
 
     if (myEpoch !== epoch) {
+      discardSilently(item);
+      return true;
+    }
+
+    // Ownership was lost while generating: another tab runs this queue now, so the result is
+    // discarded without any append or save (D-10).
+    if (!isOwner()) {
       discardSilently(item);
       return true;
     }

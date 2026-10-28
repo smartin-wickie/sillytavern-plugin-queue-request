@@ -26,6 +26,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
   let items = [];
   let boundKey = null;
   let boundIntegrity = null;
+  let readOnly = false;
   const listeners = new Set();
   const resetListeners = new Set();
 
@@ -56,6 +57,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
   // enqueue saves immediately; a lost cancel/clear/done write only re-shows an item in the
   // resume consent popup.
   function writeMetadata(excludeId) {
+    if (readOnly) return null;
     if (boundKey === null) return null;
     let c;
     try {
@@ -127,7 +129,20 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     }
   }
 
+  // Read-only (non-owner tab or claim window): nothing is added and nothing persists.
+  function setReadOnly(flag) {
+    const next = Boolean(flag);
+    if (next === readOnly) return;
+    readOnly = next;
+    notify();
+  }
+
+  function isReadOnly() {
+    return readOnly;
+  }
+
   function add(fingerprint) {
+    if (readOnly) return { ok: false, reason: 'readonly' };
     if (pendingCount() + runningCount() >= effectiveCap()) {
       return { ok: false, reason: 'max' };
     }
@@ -279,6 +294,8 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     offReset,
     persist,
     persistExcluding,
+    setReadOnly,
+    isReadOnly,
     bindChat,
     unbind,
     rebind,

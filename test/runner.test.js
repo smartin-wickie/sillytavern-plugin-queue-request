@@ -866,3 +866,42 @@ describe('Connection gate', () => {
     expect(s.generate).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('runner ownership gate', () => {
+  it('does not start any item while isOwner() is false', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    const generate = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append: vi.fn(), isOwner: () => false });
+
+    await runner.wake();
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(store.getItems()[0].status).toBe('queued');
+  });
+
+  it('discards a late result silently when ownership is lost mid-generation', async () => {
+    const ctx = makeCtx({ saveChat: vi.fn() });
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    let owner = true;
+    const generate = vi.fn(async () => {
+      owner = false;
+      return { text: 'late', meta: {} };
+    });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append, isOwner: () => owner });
+    const failed = vi.fn();
+    runner.onItemFailed(failed);
+
+    await runner.wake();
+
+    expect(append).not.toHaveBeenCalled();
+    expect(ctx.saveChat).not.toHaveBeenCalled();
+    expect(failed).not.toHaveBeenCalled();
+    expect(store.getItems()[0].status).toBe('failed');
+  });
+});
