@@ -12,7 +12,10 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Manual send/swipe/continue pauses the queue; queue resumes after if target still valid — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
+- [x] Target message edited/deleted or new user message sent: pending items cleared, toast shown — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
+- [x] Chat switch (`CHAT_CHANGED`): running item aborted, pending items kept in that chat's metadata — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
+- [x] Queue persists across refresh in `chat_metadata`; on load, user is asked whether to resume (no auto-run) — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
 
 ### Active
 
@@ -24,10 +27,6 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 - [ ] On completion, result appends to `swipes[]` with parallel `swipe_info[]` (`send_date`, `gen_started`, `gen_finished`, `extra`), pager total increments live, chat saved via `saveChatConditional()`
 - [ ] Displayed `swipe_id` never changes unless user opted in (setting: auto-jump when already on newest swipe)
 - [ ] Per-item failures (API error, empty reply, abort) reported non-modally and dropped; queue continues
-- [ ] Manual send/swipe/continue pauses the queue; queue resumes after if target still valid
-- [ ] Target message edited/deleted or new user message sent: pending items cleared, toast shown
-- [ ] Chat switch (`CHAT_CHANGED`): running item aborted, pending items kept in that chat's metadata
-- [ ] Queue persists across refresh in `chat_metadata`; on load, user is asked whether to resume (no auto-run)
 - [ ] Settings panel: max queue, auto-jump, notification style
 - [ ] Works with all ST backends (Chat Completion and Text Completion at minimum) with no extra configuration
 - [ ] Coexists with Deep-Swipe, UserSwipes, Prompt Inspector
@@ -96,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-25 after Phase 1 (Route Verification Spike) completion*
+*Last updated: 2026-10-28 after Phase 4 (Lifecycle, Persistence & Spend Safety) completion*
