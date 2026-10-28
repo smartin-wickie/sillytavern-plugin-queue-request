@@ -4,11 +4,12 @@
 // recurses to retry — every wait is driven by setTimeout polling so the call stack does not
 // grow unbounded on a long-paused queue.
 
-import { fingerprintMatches } from './fingerprint.js';
+import { fingerprintStatus } from './fingerprint.js';
 import { abortOwn } from './adapter.js';
 
 const APPEND_RETRY_MS = 250;
 const IDLE_RETRY_MS = 250;
+const PAUSE_PRIORITY = ['takeover', 'restored', 'inspector', 'connection', 'failures', 'native'];
 
 function isIdle(bridge) {
   return !bridge.isGenerating() && bridge.swipeState() === 'none';
@@ -25,7 +26,10 @@ function extractReason(err) {
 
 export function createRunner({ bridge, store, generate, append }) {
   let running = false;
-  let paused = false;
+  const pauseReasons = new Set();
+  const stateListeners = new Set();
+  let epoch = 0;
+  let abortDisposition = null;
   let idleRetryTimer = null;
   let runningController = null;
   const failedListeners = new Set();
@@ -65,42 +69,61 @@ export function createRunner({ bridge, store, generate, append }) {
     }
   }
 
+  function emitState() {
+    for (const cb of stateListeners) cb();
+  }
+
   async function processNext() {
     const item = store.peekNext();
     if (!item) return false;
 
-    if (!fingerprintMatches(bridge, item.fingerprint)) {
+    const status = fingerprintStatus(bridge, item.fingerprint);
+    if (status === 'chat') {
+      // A chat switch is in progress: leave every item untouched and hold the queue.
+      pause('restored');
+      return true;
+    }
+    if (status === 'target') {
       store.drop(item.id, 'stale');
       notifyFailed(item.id, 'stale');
       return true;
     }
 
+    // --- additional start gates (owner, Prompt Inspector, connection) are checked here ---
+
     store.markRunning(item.id);
 
+    const myEpoch = epoch;
     let result;
     runningController = new AbortController();
     try {
       result = await generate(item, { signal: runningController.signal });
     } catch (err) {
       const reason = extractReason(err);
-      notifyFailed(item.id, reason);
-      store.drop(item.id, reason);
-      return true;
+      return handleFailure(item, reason);
     } finally {
       runningController = null;
     }
 
     if (result && typeof result === 'object' && 'error' in result) {
-      const reason = extractReason(result);
-      notifyFailed(item.id, reason);
-      store.drop(item.id, reason);
+      return handleFailure(item, extractReason(result));
+    }
+    abortDisposition = null;
+
+    // Park the finished result until ST is idle and no native generation holds the queue.
+    // The 'native' reason is only cleared after the guard re-fingerprints (Continue edits the
+    // target), so waiting on it here keeps a paid-for result from being dropped early.
+    while (!isIdle(bridge) || pauseReasons.has('native')) {
+      await new Promise((resolve) => setTimeout(resolve, IDLE_RETRY_MS));
+    }
+
+    if (myEpoch !== epoch) {
+      discardSilently(item);
       return true;
     }
 
-    // GUARD-04's second checkpoint: re-validate the target independently, immediately before
-    // the append, since an edit/delete/chat-switch may have landed in the window while
-    // generate() was running. The generated text is discarded here and never appended anywhere.
-    if (!fingerprintMatches(bridge, item.fingerprint)) {
+    // GUARD-04's second checkpoint: re-validate the live target right before the append.
+    if (fingerprintStatus(bridge, item.fingerprint) !== 'ok') {
       store.drop(item.id, 'stale');
       notifyFailed(item.id, 'stale');
       return true;
@@ -133,9 +156,31 @@ export function createRunner({ bridge, store, generate, append }) {
     return true;
   }
 
+  function discardSilently(item) {
+    const current = store.getItems().find((i) => i.id === item.id);
+    if (current && current.status === 'running') store.drop(item.id, 'stale');
+  }
+
+  // Returns whether the loop should keep going.
+  function handleFailure(item, reason) {
+    const disposition = abortDisposition;
+    abortDisposition = null;
+    if (reason === 'cancelled' && disposition === 'requeue') {
+      store.requeue(item.id);
+      return false; // stop the loop: an immediate restart would regenerate the same item
+    }
+    if (reason === 'cancelled' && disposition === 'discard') {
+      discardSilently(item);
+      return true;
+    }
+    notifyFailed(item.id, reason);
+    store.drop(item.id, reason);
+    return true;
+  }
+
   async function loop() {
     while (true) {
-      if (paused) return;
+      if (pauseReasons.size) return;
       if (!isIdle(bridge)) {
         scheduleIdleRetry();
         return;
@@ -152,7 +197,7 @@ export function createRunner({ bridge, store, generate, append }) {
    * is also a no-op even if items are pending (GEN-01's "no overlap with native generation").
    */
   async function wake() {
-    if (paused) return;
+    if (pauseReasons.size) return;
     if (running) return;
     running = true;
     try {
@@ -163,18 +208,51 @@ export function createRunner({ bridge, store, generate, append }) {
   }
 
   /**
-   * Pause the runner: wake() becomes a no-op (does not start a new item) until resume() is
-   * called, even if items are pending. Does not abort an item already mid-generate() — the
-   * Guard only blocks the *next* item from starting, it never interrupts a running one.
+   * Hold the runner for `reason`: wake() becomes a no-op until every reason is cleared. Does not
+   * abort an item already mid-generate(); that item is parked (when reason is 'native') instead.
    */
-  function pause(reason) {
-    paused = true;
+  function pause(reason = 'native') {
+    if (pauseReasons.has(reason)) return;
+    pauseReasons.add(reason);
+    emitState();
   }
 
-  /** Clear the paused flag and kick the runner once. Returns wake()'s promise. */
-  function resume() {
-    paused = false;
+  /** Clear one reason (or all when omitted) and kick the runner. Returns wake()'s promise. */
+  function resume(reason) {
+    const before = pauseReasons.size;
+    if (reason === undefined) pauseReasons.clear();
+    else pauseReasons.delete(reason);
+    if (pauseReasons.size !== before) emitState();
     return wake();
+  }
+
+  function resumeAll() {
+    return resume();
+  }
+
+  function isPaused() {
+    return pauseReasons.size > 0;
+  }
+
+  function getPauseReasons() {
+    return [...pauseReasons];
+  }
+
+  function getPrimaryReason() {
+    return PAUSE_PRIORITY.find((r) => pauseReasons.has(r)) ?? null;
+  }
+
+  function onStateChange(cb) {
+    stateListeners.add(cb);
+  }
+
+  function offStateChange(cb) {
+    stateListeners.delete(cb);
+  }
+
+  /** Invalidate every in-flight or parked result: it will be discarded silently. */
+  function invalidate() {
+    epoch += 1;
   }
 
   function onItemFailed(cb) {
@@ -196,14 +274,31 @@ export function createRunner({ bridge, store, generate, append }) {
   /**
    * Abort the item currently mid-generate(), if any (QUEUE-06/D-02). Delegates to adapter.js's
    * abortOwn(), which only ever touches this runner's own AbortController — never ST's global
-   * stopGeneration(). send() already resolves { aborted: true } rather than throwing, so the
+   * stop function. send() already resolves { aborted: true } rather than throwing, so the
    * aborted item is dropped with reason 'cancelled' by processNext()'s existing error-handling
    * branch, unmodified.
    */
-  function abortRunning() {
+  function abortRunning({ disposition = 'cancel' } = {}) {
     if (!runningController) return { aborted: false };
+    abortDisposition = disposition;
     return abortOwn(runningController);
   }
 
-  return { wake, pause, resume, onItemFailed, offItemFailed, abortRunning, onItemDone, offItemDone };
+  return {
+    wake,
+    pause,
+    resume,
+    resumeAll,
+    isPaused,
+    getPauseReasons,
+    getPrimaryReason,
+    onStateChange,
+    offStateChange,
+    invalidate,
+    onItemFailed,
+    offItemFailed,
+    abortRunning,
+    onItemDone,
+    offItemDone,
+  };
 }

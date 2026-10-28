@@ -299,7 +299,7 @@ describe('createRunner', () => {
     expect(store.getItems().find((i) => i.id === item.id).status).toBe('done');
   });
 
-  it('pause() does not abort an item already mid-generate(); the current item still completes, but no further item starts until resume()', async () => {
+  it('pause() does not abort an item mid-generate(); its result is parked until resume, then appended, and no further item starts before that', async () => {
     const ctx = makeCtx();
     const bridge = makeBridge(ctx);
     const store = createStore({ bridge, maxQueueSize: 5 });
@@ -317,15 +317,16 @@ describe('createRunner', () => {
     runner.pause('native'); // fires mid-flight, while the first item's generate() is pending
 
     resolveFirst({ text: 'first text', meta: {} });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(append).not.toHaveBeenCalled(); // parked while 'native' is set
+    expect(store.getItems().find((i) => i.id === first.id).status).toBe('running');
+
+    runner.resume('native');
+    await vi.advanceTimersByTimeAsync(300);
     await wakePromise;
 
-    expect(generate).toHaveBeenCalledTimes(1); // only the first item ran; pause blocked the second
-    expect(store.getItems().find((i) => i.id === first.id).status).toBe('done');
-    expect(store.getItems().find((i) => i.id === second.id).status).toBe('queued');
-
-    await runner.resume();
-
     expect(generate).toHaveBeenCalledTimes(2);
+    expect(store.getItems().find((i) => i.id === first.id).status).toBe('done');
     expect(store.getItems().find((i) => i.id === second.id).status).toBe('done');
   });
 
@@ -475,5 +476,192 @@ describe('createRunner', () => {
     await runner.wake();
 
     expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it('reason isolation: resume("native") leaves other pause reasons; resume() and resumeAll() clear all', () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const runner = createRunner({ bridge, store, generate: vi.fn(), append: vi.fn() });
+
+    runner.pause('native');
+    runner.pause('failures');
+    runner.resume('native');
+    expect(runner.isPaused()).toBe(true);
+    expect(runner.getPauseReasons()).toEqual(['failures']);
+
+    runner.pause('takeover');
+    expect(runner.getPrimaryReason()).toBe('takeover');
+    runner.resume();
+    expect(runner.isPaused()).toBe(false);
+    expect(runner.getPrimaryReason()).toBeNull();
+
+    runner.pause('inspector');
+    runner.pause('connection');
+    expect(runner.getPrimaryReason()).toBe('inspector');
+    runner.resumeAll();
+    expect(runner.getPauseReasons()).toEqual([]);
+  });
+
+  it('onStateChange fires only on actual reason-set changes; offStateChange removes', () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const runner = createRunner({ bridge, store, generate: vi.fn(), append: vi.fn() });
+    const cb = vi.fn();
+    runner.onStateChange(cb);
+
+    runner.pause('native');
+    runner.pause('native');
+    expect(cb).toHaveBeenCalledTimes(1);
+    runner.resume('failures');
+    expect(cb).toHaveBeenCalledTimes(1);
+    runner.resume('native');
+    expect(cb).toHaveBeenCalledTimes(2);
+    runner.offStateChange(cb);
+    runner.pause('native');
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it('parks a finished result until the bridge is idle, then appends', async () => {
+    const ctx = makeCtx();
+    let generating = false;
+    const bridge = { ctx: () => ctx, isGenerating: () => generating, swipeState: () => 'none' };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    const generate = vi.fn(async () => {
+      generating = true; // a native generation starts while ours finishes
+      return { text: 't', meta: {} };
+    });
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+
+    const p = runner.wake();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(append).not.toHaveBeenCalled();
+    generating = false;
+    await vi.advanceTimersByTimeAsync(300);
+    await p;
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it('Continue case: fingerprint changes while parked under "native"; result is not dropped and appends after re-fingerprint + resume("native")', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+    const generate = vi.fn(async () => ({ text: 'queued text', meta: {} }));
+    const append = vi.fn().mockResolvedValue('ok');
+    const runner = createRunner({ bridge, store, generate, append });
+
+    const p = runner.wake();
+    runner.pause('native'); // lands while generate() is in flight
+    ctx.chat[0].mes = 'hello continued'; // native Continue edits the swipe-0 text
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(append).not.toHaveBeenCalled();
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('running');
+
+    // onNativeEnd: re-fingerprint the live item, then release 'native'
+    item.fingerprint = buildFingerprint(ctx, 0);
+    runner.resume('native');
+    await vi.advanceTimersByTimeAsync(300);
+    await p;
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('done');
+  });
+
+  it('invalidate() during generate discards silently: no append, no failure notification', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+    let runner;
+    const generate = vi.fn(async () => {
+      runner.invalidate();
+      return { text: 't', meta: {} };
+    });
+    const append = vi.fn();
+    runner = createRunner({ bridge, store, generate, append });
+    const onFailed = vi.fn();
+    runner.onItemFailed(onFailed);
+
+    await runner.wake();
+
+    expect(append).not.toHaveBeenCalled();
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(store.getItems().find((i) => i.id === item.id)).toMatchObject({ status: 'failed', reason: 'stale' });
+  });
+
+  it('invalidate() while parked discards silently', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    const generate = vi.fn(async () => ({ text: 't', meta: {} }));
+    const append = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append });
+    const onFailed = vi.fn();
+    runner.onItemFailed(onFailed);
+
+    const p = runner.wake();
+    runner.pause('native');
+    await vi.advanceTimersByTimeAsync(500);
+    runner.invalidate();
+    runner.resume('native');
+    await vi.advanceTimersByTimeAsync(300);
+    await p;
+
+    expect(append).not.toHaveBeenCalled();
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  async function runAbort(disposition) {
+    const ctx = makeCtx();
+    const stopGeneration = vi.fn();
+    const bridge = { ...makeBridge(ctx), stopGeneration };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+    let resolveGenerate;
+    const generate = vi.fn(() => new Promise((resolve) => { resolveGenerate = resolve; }));
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+    const onFailed = vi.fn();
+    runner.onItemFailed(onFailed);
+
+    const p = runner.wake();
+    await Promise.resolve();
+    await Promise.resolve();
+    await runner.abortRunning({ disposition });
+    resolveGenerate({ error: 'cancelled' });
+    await p;
+    return { store, item, onFailed, stopGeneration };
+  }
+
+  it('abortRunning({ disposition: "requeue" }) returns the item to queued with no failure notification and never calls stopGeneration', async () => {
+    const { store, item, onFailed, stopGeneration } = await runAbort('requeue');
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('queued');
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(stopGeneration).not.toHaveBeenCalled();
+  });
+
+  it('abortRunning({ disposition: "discard" }) drops silently without notifying', async () => {
+    const { store, item, onFailed } = await runAbort('discard');
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('failed');
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  it('chat identity mismatch before start pauses "restored" and leaves items queued, generating nothing', async () => {
+    const ctx = makeCtx();
+    const bridge = makeBridge(ctx);
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const item = store.add(buildFingerprint(ctx, 0)).item;
+    ctx.chatId = 'chat-2';
+    const generate = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+
+    await runner.wake();
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(runner.getPauseReasons()).toEqual(['restored']);
+    expect(store.getItems().find((i) => i.id === item.id).status).toBe('queued');
   });
 });
