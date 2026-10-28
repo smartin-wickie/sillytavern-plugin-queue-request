@@ -257,7 +257,10 @@ export function registerQueueControl({ store, runner }) {
   // UI-03: one coalesced summary toast per queue run, replacing Phase 2's per-item toast.
   const acc = createRunAccumulator();
 
+  store.onReset(() => acc.reset());
+
   function flush({ completed, failures }) {
+    if (completed === 0 && failures.size === 0) return;
     if (failures.size === 0) {
       if (getNotificationStyle() === 'all') {
         toastr.success(`${completed} queued swipe(s) completed.`);

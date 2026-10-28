@@ -196,3 +196,68 @@ describe('createStore', () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('store clear / refingerprintAll / onReset', () => {
+  it('clear fails queued and running items with the reason, notifies once, returns count', () => {
+    const store = createStore({ bridge: makeFakeBridge() });
+    const a = store.add({ mesId: 1 }).item;
+    const b = store.add({ mesId: 1 }).item;
+    const c = store.add({ mesId: 1 }).item;
+    store.markRunning(a.id);
+    store.markDone(c.id);
+    const cb = vi.fn();
+    const reset = vi.fn();
+    store.onChange(cb);
+    store.onReset(reset);
+
+    expect(store.clear('edited')).toBe(2);
+    expect(a.status).toBe('failed');
+    expect(a.reason).toBe('edited');
+    expect(b.status).toBe('failed');
+    expect(c.status).toBe('done');
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(store.getItems()).toHaveLength(3);
+  });
+
+  it('clear with nothing active returns 0 without notifying or resetting', () => {
+    const store = createStore({ bridge: makeFakeBridge() });
+    const cb = vi.fn();
+    const reset = vi.fn();
+    store.onChange(cb);
+    store.onReset(reset);
+    expect(store.clear('x')).toBe(0);
+    expect(cb).not.toHaveBeenCalled();
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it('offReset removes a reset listener', () => {
+    const store = createStore({ bridge: makeFakeBridge() });
+    store.add({ mesId: 1 });
+    const reset = vi.fn();
+    store.onReset(reset);
+    store.offReset(reset);
+    store.clear('x');
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it('refingerprintAll mutates fingerprints in place for queued/running only, one notify', () => {
+    const store = createStore({ bridge: makeFakeBridge() });
+    const fpA = { mesId: 1, swipe0Hash: 'old' };
+    const a = store.add(fpA).item;
+    const b = store.add({ mesId: 1, swipe0Hash: 'old' }).item;
+    const c = store.add({ mesId: 1, swipe0Hash: 'old' }).item;
+    store.markRunning(a.id);
+    store.markDone(c.id);
+    const cb = vi.fn();
+    store.onChange(cb);
+
+    store.refingerprintAll({ swipe0Hash: 'new' });
+
+    expect(a.fingerprint).toBe(fpA);
+    expect(fpA.swipe0Hash).toBe('new');
+    expect(b.fingerprint.swipe0Hash).toBe('new');
+    expect(c.fingerprint.swipe0Hash).toBe('old');
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+});

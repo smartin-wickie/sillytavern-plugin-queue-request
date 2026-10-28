@@ -79,3 +79,17 @@ describe('createRunAccumulator', () => {
     expect(drained).toEqual({ completed: 0, failures: new Map() });
   });
 });
+
+describe('createRunAccumulator reset', () => {
+  it('reset() discards the run so a drain reports nothing and the next run starts fresh', () => {
+    const acc = createRunAccumulator();
+    acc.noteActivity(true);
+    acc.recordDone();
+    acc.recordFailed('api');
+    acc.reset();
+
+    expect(acc.noteActivity(false)).toBeUndefined();
+    expect(acc.noteActivity(true)).toBeNull();
+    expect(acc.noteActivity(false)).toEqual({ completed: 0, failures: new Map() });
+  });
+});

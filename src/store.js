@@ -23,6 +23,7 @@ function nextId() {
 export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
   const items = [];
   const listeners = new Set();
+  const resetListeners = new Set();
 
   function notify() {
     for (const cb of listeners) cb();
@@ -96,6 +97,41 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     notify();
   }
 
+  // Fails every queued/running item with `reason` (items stay in the array like other terminal
+  // statuses). Reset listeners fire before the change notification so a run accumulator is
+  // zeroed before it can observe the queue draining. Returns the number cleared.
+  function clear(reason) {
+    const active = items.filter((item) => item.status === 'queued' || item.status === 'running');
+    if (active.length === 0) return 0;
+    for (const item of active) {
+      item.status = 'failed';
+      item.reason = reason;
+    }
+    for (const cb of [...resetListeners]) cb();
+    notify();
+    return active.length;
+  }
+
+  // Re-keys queued/running fingerprints in place so a runner holding an item reference sees
+  // the new values. Done/failed items are left untouched.
+  function refingerprintAll(fp) {
+    let touched = false;
+    for (const item of items) {
+      if (item.status !== 'queued' && item.status !== 'running') continue;
+      item.fingerprint = Object.assign(item.fingerprint ?? {}, fp);
+      touched = true;
+    }
+    if (touched) notify();
+  }
+
+  function onReset(cb) {
+    resetListeners.add(cb);
+  }
+
+  function offReset(cb) {
+    resetListeners.delete(cb);
+  }
+
   function getItems() {
     // Shallow copy — never the live internal array.
     return items.slice();
@@ -136,6 +172,10 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE } = {}) {
     requeue,
     markDone,
     drop,
+    clear,
+    refingerprintAll,
+    onReset,
+    offReset,
     pendingCount,
     runningCount,
     getItems,

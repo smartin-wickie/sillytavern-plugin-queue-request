@@ -43,5 +43,10 @@ export function createRunAccumulator() {
     run.failures.set(reason, (run.failures.get(reason) ?? 0) + 1);
   }
 
-  return { noteActivity, recordDone, recordFailed };
+  /** Return to the initial inactive state, discarding any in-progress run's counts. */
+  function reset() {
+    run = null;
+  }
+
+  return { noteActivity, recordDone, recordFailed, reset };
 }
