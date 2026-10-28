@@ -32,7 +32,7 @@ function makeBridge(eventSource) {
 }
 
 function makeRunner() {
-  return { pause: vi.fn(), resume: vi.fn() };
+  return { pause: vi.fn(), resume: vi.fn(), getPauseReasons: vi.fn(() => ['native']) };
 }
 
 beforeEach(() => {
@@ -94,6 +94,7 @@ describe('createGuard', () => {
     await vi.runAllTimersAsync();
 
     expect(runner.resume).toHaveBeenCalledTimes(1);
+    expect(runner.resume).toHaveBeenCalledWith('native');
   });
 
   it('resumes the runner on GENERATION_STOPPED', async () => {
@@ -107,6 +108,7 @@ describe('createGuard', () => {
     await vi.runAllTimersAsync();
 
     expect(runner.resume).toHaveBeenCalledTimes(1);
+    expect(runner.resume).toHaveBeenCalledWith('native');
   });
 
   it('schedules the pause/resume call via a microtask/setTimeout rather than running it inline inside emit (Pitfall 6)', () => {
@@ -156,5 +158,91 @@ describe('createGuard', () => {
       guard.stop();
       guard.stop();
     }).not.toThrow();
+  });
+
+  it('calls lifecycle.onNativeStart(type) with the pause on a non-dry start, and nothing on a dry run', async () => {
+    const eventSource = makeEventSource();
+    const bridge = makeBridge(eventSource);
+    const runner = makeRunner();
+    const lifecycle = { onNativeStart: vi.fn(), onNativeEnd: vi.fn() };
+    const guard = createGuard({ bridge, runner, lifecycle });
+    guard.start();
+
+    eventSource.emit(EVENT_TYPES.GENERATION_STARTED, 'swipe', {}, true);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(lifecycle.onNativeStart).not.toHaveBeenCalled();
+
+    eventSource.emit(EVENT_TYPES.GENERATION_STARTED, 'continue', {}, false);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(lifecycle.onNativeStart).toHaveBeenCalledWith('continue');
+    expect(runner.pause).toHaveBeenCalledWith('native');
+    guard.stop();
+  });
+
+  it('runs lifecycle.onNativeEnd before runner.resume("native") on end and on stop', async () => {
+    const eventSource = makeEventSource();
+    const bridge = makeBridge(eventSource);
+    const runner = makeRunner();
+    const order = [];
+    const lifecycle = { onNativeEnd: vi.fn(() => order.push('end')) };
+    runner.resume.mockImplementation((r) => order.push(`resume:${r}`));
+    const guard = createGuard({ bridge, runner, lifecycle });
+    guard.start();
+
+    eventSource.emit(EVENT_TYPES.GENERATION_ENDED);
+    await vi.advanceTimersByTimeAsync(10);
+    eventSource.emit(EVENT_TYPES.GENERATION_STOPPED);
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(order).toEqual(['end', 'resume:native', 'end', 'resume:native']);
+    expect(runner.resume).not.toHaveBeenCalledWith();
+  });
+
+  it('watchdog releases the native pause after two consecutive idle polls', async () => {
+    const eventSource = makeEventSource();
+    const bridge = { ...makeBridge(eventSource), isGenerating: () => false, swipeState: () => 'none' };
+    const runner = makeRunner();
+    const lifecycle = { onNativeEnd: vi.fn() };
+    const guard = createGuard({ bridge, runner, lifecycle });
+    guard.start();
+
+    eventSource.emit(EVENT_TYPES.GENERATION_STARTED, 'normal', {}, false);
+    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(runner.resume).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(lifecycle.onNativeEnd).toHaveBeenCalledTimes(1);
+    expect(runner.resume).toHaveBeenCalledWith('native');
+    expect(vi.getTimerCount()).toBe(0);
+    guard.stop();
+  });
+
+  it('watchdog does not release while still generating, and stop() clears the interval', async () => {
+    const eventSource = makeEventSource();
+    const bridge = { ...makeBridge(eventSource), isGenerating: () => true, swipeState: () => 'none' };
+    const runner = makeRunner();
+    const guard = createGuard({ bridge, runner });
+    guard.start();
+
+    eventSource.emit(EVENT_TYPES.GENERATION_STARTED, 'normal', {}, false);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(runner.resume).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(1);
+
+    guard.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('does not throw when optional lifecycle hooks and bridge idle accessors are missing', async () => {
+    const eventSource = makeEventSource();
+    const bridge = makeBridge(eventSource);
+    const runner = makeRunner();
+    const guard = createGuard({ bridge, runner });
+    guard.start();
+
+    eventSource.emit(EVENT_TYPES.GENERATION_STARTED, 'normal', {}, false);
+    eventSource.emit(EVENT_TYPES.GENERATION_ENDED);
+    await expect(vi.runAllTimersAsync()).resolves.not.toThrow();
+    guard.stop();
   });
 });

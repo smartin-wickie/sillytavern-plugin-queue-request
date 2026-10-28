@@ -4,13 +4,19 @@
 // calls, and assumes it is not the only listener or emitter on eventSource.
 
 const WATCHED_EVENTS = ['GENERATION_STARTED', 'GENERATION_ENDED', 'GENERATION_STOPPED'];
+const WATCHDOG_MS = 500;
+const WATCHDOG_IDLE_TICKS = 2;
 
 /**
  * Create the native-generation Guard. `bridge` must expose `eventSource`/`event_types`;
- * `runner` must expose `pause(reason)`/`resume()` (src/runner.js).
+ * `runner` must expose `pause(reason)`/`resume(reason)`/`getPauseReasons()` (src/runner.js).
+ * `lifecycle` is optional: `onNativeStart(type)` runs when a native generation begins and
+ * `onNativeEnd()` runs when it ends, before the 'native' pause reason is released.
  */
-export function createGuard({ bridge, runner }) {
+export function createGuard({ bridge, runner, lifecycle }) {
   const handlers = [];
+  let watchdog = null;
+  let idleTicks = 0;
 
   // Event handlers never await directly into runner.wake()'s generation path inline —
   // scheduled via setTimeout(0) so a handler can never be re-entered from inside the same
@@ -19,21 +25,66 @@ export function createGuard({ bridge, runner }) {
     setTimeout(fn, 0);
   }
 
-  function onGenerationStarted(_type, _params, dryRun) {
+  function clearWatchdog() {
+    if (watchdog !== null) {
+      clearInterval(watchdog);
+      watchdog = null;
+    }
+    idleTicks = 0;
+  }
+
+  // Release only the 'native' pause reason. The lifecycle hook runs first so the queue can
+  // re-fingerprint a target that a native Continue edited before the queue is allowed to resume.
+  function endNative() {
+    clearWatchdog();
+    lifecycle?.onNativeEnd?.();
+    runner.resume('native');
+  }
+
+  function bridgeIdle() {
+    return !bridge.isGenerating() && bridge.swipeState() === 'none';
+  }
+
+  // Safety net for a missed GENERATION_ENDED: if ST reports idle on two consecutive polls while
+  // 'native' is still held, release it.
+  function startWatchdog() {
+    clearWatchdog();
+    if (typeof bridge.isGenerating !== 'function' || typeof bridge.swipeState !== 'function') return;
+    watchdog = setInterval(() => {
+      if (!runner.getPauseReasons().includes('native')) {
+        clearWatchdog();
+        return;
+      }
+      if (!bridgeIdle()) {
+        idleTicks = 0;
+        return;
+      }
+      idleTicks += 1;
+      if (idleTicks >= WATCHDOG_IDLE_TICKS) endNative();
+    }, WATCHDOG_MS);
+  }
+
+  function onGenerationStarted(type, _params, dryRun) {
     // Only a non-dry (real, user-initiated) generation pauses the runner. The runner's own
     // dry-run capture, and any other extension's dry run (e.g. Prompt Inspector's
     // tryGenerate), never pause the queue.
     if (dryRun === false) {
-      schedule(() => runner.pause('native'));
+      schedule(() => {
+        runner.pause('native');
+        lifecycle?.onNativeStart?.(type);
+        startWatchdog();
+      });
     }
   }
 
+  // Native Stop is foreign to the queue (queue cancel uses its own controller), so it only
+  // clears the 'native' reason like a normal end.
   function onGenerationEnded() {
-    schedule(() => runner.resume());
+    schedule(endNative);
   }
 
   function onGenerationStopped() {
-    schedule(() => runner.resume());
+    schedule(endNative);
   }
 
   const HANDLER_MAP = {
@@ -56,6 +107,7 @@ export function createGuard({ bridge, runner }) {
     for (const [evt, h] of handlers.splice(0, handlers.length)) {
       bridge.eventSource.removeListener(evt, h);
     }
+    clearWatchdog();
   }
 
   return { start, stop };
