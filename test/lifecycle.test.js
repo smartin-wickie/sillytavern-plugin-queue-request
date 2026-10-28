@@ -208,7 +208,7 @@ describe('createLifecycle', () => {
 describe('handleChatChanged', () => {
   const NOW = new Date('2026-10-27T12:00:00Z').getTime();
 
-  function chatSetup({ stored, promptResume } = {}) {
+  function chatSetup({ stored, promptResume, popups } = {}) {
     const chat = [
       { name: 'u', mes: 'hi', is_user: true },
       { name: 'Bot', mes: 'hello', swipes: ['hello'] },
@@ -227,9 +227,11 @@ describe('handleChatChanged', () => {
       event_types: { ...EVENT_TYPES, CHAT_CHANGED: 'CHAT_CHANGED' },
       ctx: () => state.ctx,
       chatKey: () => state.key,
+      isGenerating: () => state.generating === true,
     };
     const store = {
       getItems: () => [],
+      clear: vi.fn(() => 2),
       persist: vi.fn(),
       unbind: vi.fn(),
       rebind: vi.fn(),
@@ -242,7 +244,7 @@ describe('handleChatChanged', () => {
       abortRunning: vi.fn(),
     };
     const toast = vi.fn();
-    const lifecycle = createLifecycle({ bridge, store, runner, toast, moduleName: 'queuedSwipes', promptResume });
+    const lifecycle = createLifecycle({ bridge, store, runner, toast, moduleName: 'queuedSwipes', promptResume, popups });
     lifecycle.start();
     return { state, eventSource, store, runner, toast, lifecycle };
   }
@@ -345,5 +347,84 @@ describe('handleChatChanged', () => {
     const s = chatSetup();
     s.eventSource.emit('CHAT_CHANGED');
     expect(s.runner.resume).not.toHaveBeenCalledWith('inspector');
+  });
+
+  describe('resume popup flow', () => {
+    function withPopup(result, blob = validBlob(2)) {
+      const showResume = vi.fn(async () => result);
+      const s = chatSetup({ stored: blob, popups: { showResume } });
+      return { ...s, showResume };
+    }
+
+    it('resume answer resumes the restored reason', async () => {
+      const s = withPopup('resume');
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      expect(s.showResume).toHaveBeenCalledTimes(1);
+      expect(s.showResume).toHaveBeenCalledWith({ count: 2, model: null, api: null });
+      expect(s.runner.resume).toHaveBeenCalledWith('restored');
+    });
+
+    it('discard clears the store, toasts, and releases the pause', async () => {
+      const s = withPopup('discard');
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      expect(s.store.clear).toHaveBeenCalledWith('discarded');
+      expect(s.toast).toHaveBeenCalledWith('Discarded 2 queued swipe(s).');
+      expect(s.runner.resume).toHaveBeenCalledWith('restored');
+    });
+
+    it.each([null, undefined, 'dismiss', 'whatever'])('answer %s keeps everything stored and paused', async (answer) => {
+      const s = withPopup(answer);
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      expect(s.store.clear).not.toHaveBeenCalled();
+      expect(s.runner.resume).not.toHaveBeenCalledWith('restored');
+      expect(s.toast).not.toHaveBeenCalled();
+    });
+
+    it('defers while a native generation runs', async () => {
+      const s = withPopup('resume');
+      s.state.generating = true;
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.advanceTimersByTimeAsync(1200);
+      expect(s.showResume).not.toHaveBeenCalled();
+      s.state.generating = false;
+      await vi.advanceTimersByTimeAsync(600);
+      expect(s.showResume).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts silently when the chat key changed meanwhile', async () => {
+      const s = withPopup('resume');
+      s.state.generating = true;
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.advanceTimersByTimeAsync(100);
+      s.state.key = 'av/other';
+      s.state.generating = false;
+      await vi.advanceTimersByTimeAsync(600);
+      expect(s.showResume).not.toHaveBeenCalled();
+    });
+
+    it('prompts once per load and never for zero valid items', async () => {
+      const s = withPopup('dismiss');
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      expect(s.showResume).toHaveBeenCalledTimes(1);
+      const empty = withPopup('resume', { version: 1, items: [] });
+      empty.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      expect(empty.showResume).not.toHaveBeenCalled();
+    });
+
+    it('passes the oldest item connection to the popup', async () => {
+      const blob = validBlob(2);
+      blob.items[0].connection = { api: 'openai', model: 'gpt-x', preset: null };
+      const s = withPopup('dismiss', blob);
+      s.eventSource.emit('CHAT_CHANGED');
+      await vi.runAllTimersAsync();
+      expect(s.showResume).toHaveBeenCalledWith({ count: 2, model: 'gpt-x', api: 'openai' });
+    });
   });
 });

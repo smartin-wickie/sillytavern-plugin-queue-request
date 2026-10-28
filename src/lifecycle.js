@@ -17,7 +17,7 @@ const MESSAGES = {
  * exposes `getItems`/`clear`/`refingerprintAll`; `runner` exposes `invalidate`/`abortRunning`;
  * `toast(message)` shows a notification.
  */
-export function createLifecycle({ bridge, store, runner, toast, moduleName = 'queuedSwipes', promptResume }) {
+export function createLifecycle({ bridge, store, runner, toast, moduleName = 'queuedSwipes', promptResume, popups }) {
   const handlers = [];
   let continueTarget = null;
   const state = { boundKey: null, boundIntegrity: null };
@@ -141,12 +141,34 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
         runner.resume('restored');
         return;
       }
-      if (typeof promptResume === 'function') {
+      const prompt = popups?.showResume ? (info) => runResumePrompt(info, token, liveKey) : promptResume;
+      if (typeof prompt === 'function') {
         schedule(() => {
-          if (token === loadToken) promptResume({ count: result.items.length, items: result.items });
+          if (token === loadToken) prompt({ count: result.items.length, items: result.items });
         });
       }
     });
+  }
+
+  // Resume prompt: deferred while a native generation runs, silent if the chat changed in the
+  // meantime. The popup is awaited here, in a scheduled task, never inside an event handler.
+  async function runResumePrompt({ count, items }, token, key) {
+    if (token !== loadToken) return;
+    if (bridge.isGenerating?.()) {
+      setTimeout(() => runResumePrompt({ count, items }, token, key), 500);
+      return;
+    }
+    if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
+    const first = items[0]?.connection ?? null;
+    const answer = await popups.showResume({ count, model: first?.model ?? null, api: first?.api ?? null });
+    if (token !== loadToken) return;
+    if (answer === 'resume') {
+      runner.resume('restored');
+    } else if (answer === 'discard') {
+      const n = store.clear('discarded');
+      toast(`Discarded ${n > 0 ? n : count} queued swipe(s).`);
+      runner.resume('restored');
+    }
   }
 
   const HANDLER_MAP = {
