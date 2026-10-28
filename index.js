@@ -4,6 +4,7 @@ import { MODULE_NAME } from './src/st-bridge.js';
 import { createStore } from './src/store.js';
 import { createRunner } from './src/runner.js';
 import { createGuard } from './src/guard.js';
+import { createLifecycle } from './src/lifecycle.js';
 import { appendSwipe } from './src/appender.js';
 import { registerQueueControl } from './src/ui.js';
 import { registerCommands } from './src/commands.js';
@@ -81,8 +82,15 @@ export async function init() {
   // Exactly one store/runner instance per loaded chat, not one per click.
   const store = createStore({ bridge, maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize });
   const runner = createRunner({ bridge, store, generate, append: appendSwipe });
-  const guard = createGuard({ bridge, runner });
+  const lifecycle = createLifecycle({
+    bridge,
+    store,
+    runner,
+    toast: (m) => toastr.info(m, '', { preventDuplicates: true }),
+  });
+  const guard = createGuard({ bridge, runner, lifecycle });
   guard.start();
+  lifecycle.start();
 
   registerQueueControl({ store, runner });
   registerCommands({ store, runner, cancelAll });
