@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 4 context gathered
-last_updated: "2026-10-28T04:23:37.706Z"
+last_updated: "2026-10-28T04:26:27.663Z"
 last_activity: 2026-10-28 -- Phase 04 execution started
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 24
-  completed_plans: 21
+  completed_plans: 22
   percent: 60
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 04 (lifecycle-persistence-spend-safety) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Executing Phase 04
 Last activity: 2026-10-28 -- Phase 04 execution started
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [█████████░] 88%
 
 | Phase 04 P02 | 10min | 3 tasks | 9 files |
 | Phase 04 P05 | 10min | 3 tasks | 11 files |
+| Phase 04 P06 | 20min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,7 @@ Recent decisions affecting current work:
 
 - Generation route (R1 dryRun capture + own transport vs R2 native swipe + view restore) is undecided; Phase 1 spike resolves it and gates Phases 2-4.
 - [Phase 04]: [Phase 04-05]: getFailureCount aliases getConsecutiveFailures; resume('failures') resets breaker counter; inspector gate only between items
+- [Phase 04]: [04-06] Preset recorded by name only; connection change pauses and asks, never marks stale
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-10-28T04:23:31.219Z
+Last session: 2026-10-28T04:26:20.974Z
 Stopped at: Phase 4 context gathered
 Resume file: .planning/phases/04-lifecycle-persistence-spend-safety/04-CONTEXT.md

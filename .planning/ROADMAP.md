@@ -129,7 +129,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 04-06-PLAN.md — Connection-change pause and popup (SAFE-02)
+- [x] 04-06-PLAN.md — Connection-change pause and popup (SAFE-02)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
@@ -162,5 +162,5 @@ Plans:
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
-| 4. Lifecycle, Persistence & Spend Safety | 5/8 | In Progress|  |
+| 4. Lifecycle, Persistence & Spend Safety | 6/8 | In Progress|  |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
