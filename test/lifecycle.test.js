@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLifecycle } from '../src/lifecycle.js';
 import { hash } from '../src/fingerprint.js';
+import { buildSnapshot } from '../src/persistence.js';
 
 const EVENT_TYPES = {
   MESSAGE_EDITED: 'MESSAGE_EDITED',
@@ -710,6 +711,39 @@ describe('ownership integration', () => {
     await vi.runAllTimersAsync();
     s.fireRole({ role: 'owner', reason: 'takeover' });
     expect(s.store.rebind.mock.lastCall[0]).toHaveLength(2);
+  });
+
+  function builtSnapshot(n) {
+    const fp = { mesId: 1, chatLength: 2, swipe0Hash: hash('hello'), name: 'Bot' };
+    return buildSnapshot({
+      items: Array.from({ length: n }, (_, i) => ({
+        id: `p${i}`,
+        status: 'queued',
+        createdAt: new Date(NOW - 1000),
+        fingerprint: fp,
+        connection: {},
+      })),
+      completed: 0,
+      reasons: ['restored'],
+      failures: 0,
+    });
+  }
+
+  it('takeover restores items from a snapshot published by buildSnapshot (CR-01)', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(3), snapshot: builtSnapshot(2) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    expect(s.store.rebind.mock.lastCall[0].map((i) => i.id)).toEqual(['p0', 'p1']);
+    expect(s.toast).toHaveBeenCalledWith(TAKEOVER);
+  });
+
+  it('takeover falls back to chat metadata when the snapshot is unusable (CR-01)', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(3), snapshot: { items: [] } });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    expect(s.store.rebind.mock.lastCall[0]).toHaveLength(3);
   });
 
   it('demotion invalidates, aborts with discard, then goes read-only, without a toast', async () => {

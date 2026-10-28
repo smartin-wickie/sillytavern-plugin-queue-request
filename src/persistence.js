@@ -123,7 +123,10 @@ function nonNegInt(v) {
   return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
 }
 
-/** Build the owner's published display snapshot from live store items and runner state. */
+/**
+ * Build the owner's published display snapshot from live store items and runner state. It
+ * carries the stored-schema version so a tab taking over can load it through loadStored.
+ */
 export function buildSnapshot({ items, completed, reasons, failures } = {}) {
   const out = [];
   for (const item of items ?? []) {
@@ -148,6 +151,7 @@ export function buildSnapshot({ items, completed, reasons, failures } = {}) {
     });
   }
   return {
+    version: SCHEMA_VERSION,
     items: out.slice(0, DEFAULT_MAX_ITEMS),
     completed: nonNegInt(completed),
     reasons: (Array.isArray(reasons) ? reasons : []).filter((r) => SNAPSHOT_REASONS.includes(r)),

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { buildSnapshot, parseSnapshot } from '../src/persistence.js';
+import { buildSnapshot, loadStored, parseSnapshot } from '../src/persistence.js';
+import { hash } from '../src/fingerprint.js';
 import { createStore } from '../src/store.js';
 
 describe('snapshot build/parse', () => {
@@ -24,6 +25,29 @@ describe('snapshot build/parse', () => {
     expect(parsed.items).toHaveLength(2);
     expect(parsed.completed).toBe(2);
     expect(parsed.items[0].createdAt).toBe(1000);
+  });
+
+  it('a built snapshot loads back through loadStored with its items (CR-01)', () => {
+    const chat = [
+      { name: 'u', mes: 'hi', is_user: true },
+      { name: 'Bot', mes: 'hello', swipes: ['hello'] },
+    ];
+    const ctx = { chatId: 'c1', chat, chatMetadata: { integrity: 'i1' } };
+    const fp = { mesId: 1, chatLength: 2, swipe0Hash: hash('hello'), name: 'Bot' };
+    const now = Date.now();
+    const snap = buildSnapshot({
+      items: [
+        { id: 'a', status: 'queued', createdAt: new Date(now - 1000), fingerprint: fp, connection: {} },
+        { id: 'b', status: 'running', createdAt: new Date(now - 500), fingerprint: fp, connection: {} },
+      ],
+      completed: 0,
+      reasons: [],
+      failures: 0,
+    });
+    const result = loadStored(JSON.parse(JSON.stringify(snap)), ctx, now);
+    expect(result.ignored).toBe(false);
+    expect(result.items.map((i) => i.id)).toEqual(['a', 'b']);
+    expect(parseSnapshot(snap)).not.toBeNull();
   });
 
   it('rejects invalid shapes and truncates to 20', () => {

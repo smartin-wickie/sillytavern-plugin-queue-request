@@ -216,9 +216,13 @@ export function createLifecycle({
     state.boundIntegrity = integrity;
     store.setReadOnly(false);
     store.bindChat(state.boundKey, integrity);
+    // Prefer the previous owner's snapshot; a missing or unusable one (wrong version, bad
+    // shape) falls back to chat metadata instead of silently restoring nothing.
     const snapshot = ownership?.readState?.()?.snapshot;
-    const source = Array.isArray(snapshot?.items) ? snapshot : c.chatMetadata?.[moduleName];
-    const result = loadStored(source, c, Date.now(), { maxItems: 20 });
+    let result = snapshot ? loadStored(snapshot, c, Date.now(), { maxItems: 20 }) : null;
+    if (!result || result.ignored) {
+      result = loadStored(c.chatMetadata?.[moduleName], c, Date.now(), { maxItems: 20 });
+    }
     store.rebind(result.items);
     if (result.dropped > 0) store.persist({ immediate: true });
     if (result.items.length > 0) {
