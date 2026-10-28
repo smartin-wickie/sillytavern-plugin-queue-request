@@ -158,7 +158,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Gap warning toast (bridge detection, once-per-session gate) + COMP-02 unit proofs (COMP-02)
+- [x] 05-01-PLAN.md — Gap warning toast (bridge detection, once-per-session gate) + COMP-02 unit proofs (COMP-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -179,4 +179,4 @@ Plans:
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
 | 4. Lifecycle, Persistence & Spend Safety | 8/8 | Complete   | 2026-10-28 |
-| 5. Compatibility & Release | 0/4 | Not started | - |
+| 5. Compatibility & Release | 1/4 | In Progress|  |
