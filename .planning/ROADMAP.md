@@ -133,7 +133,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 04-07-PLAN.md — Cross-tab lease ownership, takeover, demotion (SAFE-04)
+- [x] 04-07-PLAN.md — Cross-tab lease ownership, takeover, demotion (SAFE-04)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
@@ -162,5 +162,5 @@ Plans:
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
-| 4. Lifecycle, Persistence & Spend Safety | 6/8 | In Progress|  |
+| 4. Lifecycle, Persistence & Spend Safety | 7/8 | In Progress|  |
 | 5. Compatibility & Release | 0/TBD | Not started | - |
