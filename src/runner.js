@@ -24,7 +24,22 @@ function extractReason(err) {
   return 'error';
 }
 
-export function createRunner({ bridge, store, generate, append }) {
+const DEFAULT_THRESHOLD = 3;
+
+// Clamp the live-read breaker threshold to an integer 1..10; anything non-finite falls back to
+// the default so a bad settings value can never disable the breaker.
+function effectiveThreshold(getThreshold) {
+  let raw;
+  try {
+    raw = Number(getThreshold());
+  } catch {
+    raw = NaN;
+  }
+  if (!Number.isFinite(raw)) return DEFAULT_THRESHOLD;
+  return Math.min(10, Math.max(1, Math.trunc(raw)));
+}
+
+export function createRunner({ bridge, store, generate, append, getThreshold = () => DEFAULT_THRESHOLD }) {
   let running = false;
   const pauseReasons = new Set();
   const stateListeners = new Set();
@@ -34,6 +49,9 @@ export function createRunner({ bridge, store, generate, append }) {
   let runningController = null;
   const failedListeners = new Set();
   const doneListeners = new Set();
+  const breakerListeners = new Set();
+  const inspectorListeners = new Set();
+  let consecutive = 0;
 
   function notifyFailed(id, reason) {
     // A stale drop (fingerprint mismatch at either GUARD-04 checkpoint) is a silent
@@ -89,7 +107,16 @@ export function createRunner({ bridge, store, generate, append }) {
       return true;
     }
 
-    // --- additional start gates (owner, Prompt Inspector, connection) are checked here ---
+    // Prompt Inspector skips the dry run the capture relies on, so hold the queue (never abort
+    // an in-flight item: this gate only runs between items).
+    if (bridge.promptInspectorEnabled?.()) {
+      const newlyPaused = !pauseReasons.has('inspector');
+      pause('inspector');
+      if (newlyPaused) for (const cb of inspectorListeners) cb();
+      return true;
+    }
+
+    // --- additional start gates (owner, connection) are checked here ---
 
     store.markRunning(item.id);
 
@@ -147,6 +174,7 @@ export function createRunner({ bridge, store, generate, append }) {
       // that detection fires flush() in this same call stack — so the toast-coalescing
       // accumulator's recordDone() must have already run, or the drain's `completed` count
       // undercounts the very item that just finished (confirmed live, off-by-one, ST 1.19.0).
+      consecutive = 0;
       notifyDone(item.id);
       store.markDone(item.id);
     } else if (appended === 'stale') {
@@ -177,6 +205,13 @@ export function createRunner({ bridge, store, generate, append }) {
     }
     notifyFailed(item.id, reason);
     store.drop(item.id, reason);
+    if (reason === 'api' || reason === 'empty') {
+      consecutive += 1;
+      if (consecutive >= effectiveThreshold(getThreshold)) {
+        pause('failures');
+        for (const cb of breakerListeners) cb({ n: consecutive });
+      }
+    }
     return true;
   }
 
@@ -222,8 +257,13 @@ export function createRunner({ bridge, store, generate, append }) {
   /** Clear one reason (or all when omitted) and kick the runner. Returns wake()'s promise. */
   function resume(reason) {
     const before = pauseReasons.size;
-    if (reason === undefined) pauseReasons.clear();
-    else pauseReasons.delete(reason);
+    if (reason === undefined) {
+      pauseReasons.clear();
+      consecutive = 0;
+    } else {
+      pauseReasons.delete(reason);
+      if (reason === 'failures') consecutive = 0;
+    }
     if (pauseReasons.size !== before) emitState();
     return wake();
   }
@@ -242,6 +282,30 @@ export function createRunner({ bridge, store, generate, append }) {
 
   function getPrimaryReason() {
     return PAUSE_PRIORITY.find((r) => pauseReasons.has(r)) ?? null;
+  }
+
+  function getConsecutiveFailures() {
+    return consecutive;
+  }
+
+  function resetCounters() {
+    consecutive = 0;
+  }
+
+  function onBreakerTrip(cb) {
+    breakerListeners.add(cb);
+  }
+
+  function offBreakerTrip(cb) {
+    breakerListeners.delete(cb);
+  }
+
+  function onInspectorPause(cb) {
+    inspectorListeners.add(cb);
+  }
+
+  function offInspectorPause(cb) {
+    inspectorListeners.delete(cb);
   }
 
   function onStateChange(cb) {
@@ -294,6 +358,13 @@ export function createRunner({ bridge, store, generate, append }) {
     isPaused,
     getPauseReasons,
     getPrimaryReason,
+    getConsecutiveFailures,
+    getFailureCount: getConsecutiveFailures,
+    resetCounters,
+    onBreakerTrip,
+    offBreakerTrip,
+    onInspectorPause,
+    offInspectorPause,
     onStateChange,
     offStateChange,
     invalidate,

@@ -82,6 +82,23 @@ export function canQueue() {
 }
 
 /**
+ * Is the Prompt Inspector extension both installed/enabled and switched on? It stores its toggle
+ * in localStorage and emits no event, so this must be polled at the point of use. Policy-level
+ * check: Prompt Inspector skips the dry run the capture depends on.
+ */
+export function promptInspectorEnabled() {
+  try {
+    if (localStorage.getItem('promptInspectorEnabled') !== 'true') return false;
+    const disabled = extension_settings.disabledExtensions ?? [];
+    return (extensionNames ?? []).some(
+      (n) => getExtensionManifest(n)?.display_name === 'Prompt Inspector' && !disabled.includes(n),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Feature-detect each re-exported ST import. Logs one console.warn per missing capability at
  * call time (not at module load), so a late ST API change surfaces only when actually probed.
  */

@@ -684,3 +684,126 @@ describe('createRunner', () => {
     expect(order).toEqual(['persist', 'append']);
   });
 });
+
+describe('circuit breaker', () => {
+  function setup(n, opts = {}) {
+    const ctx = makeCtx();
+    const bridge = { ...makeBridge(ctx), ...(opts.bridge ?? {}) };
+    const store = createStore({ bridge, maxQueueSize: 20 });
+    for (let i = 0; i < n; i++) store.add(buildFingerprint(ctx, 0));
+    return { ctx, bridge, store };
+  }
+
+  it('pauses with reason failures after 3 consecutive api failures and starts nothing more', async () => {
+    const { bridge, store } = setup(5);
+    const generate = vi.fn(async () => ({ error: 'api' }));
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+    const trip = vi.fn();
+    runner.onBreakerTrip(trip);
+    await runner.wake();
+    expect(generate).toHaveBeenCalledTimes(3);
+    expect(runner.getPauseReasons()).toEqual(['failures']);
+    expect(trip).toHaveBeenCalledTimes(1);
+    expect(trip).toHaveBeenCalledWith({ n: 3 });
+    expect(runner.getConsecutiveFailures()).toBe(3);
+    expect(store.pendingCount()).toBe(2);
+  });
+
+  it('counts empty and api but not cancelled or stale', async () => {
+    const { bridge, store } = setup(4);
+    const results = [{ error: 'empty' }, { error: 'api' }, { error: 'cancelled' }, { error: 'weird' }];
+    const generate = vi.fn(async () => results.shift());
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+    await runner.wake();
+    expect(generate).toHaveBeenCalledTimes(4);
+    expect(runner.getConsecutiveFailures()).toBe(2);
+    expect(runner.isPaused()).toBe(false);
+  });
+
+  it('a success resets the counter', async () => {
+    const { bridge, store } = setup(4);
+    const results = [{ error: 'api' }, { error: 'api' }, { text: 'x', meta: {} }, { error: 'api' }];
+    const generate = vi.fn(async () => results.shift());
+    const runner = createRunner({ bridge, store, generate, append: vi.fn(async () => 'ok') });
+    await runner.wake();
+    expect(runner.getConsecutiveFailures()).toBe(1);
+    expect(runner.isPaused()).toBe(false);
+  });
+
+  it('resumeAll and resetCounters zero the counter', async () => {
+    const { bridge, store } = setup(3);
+    const generate = vi.fn(async () => ({ error: 'api' }));
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+    await runner.wake();
+    expect(runner.getConsecutiveFailures()).toBe(3);
+    runner.resetCounters();
+    expect(runner.getConsecutiveFailures()).toBe(0);
+    await runner.wake();
+    expect(runner.isPaused()).toBe(true);
+  });
+
+  it('resumeAll resets the counter after a trip', async () => {
+    const { bridge, store } = setup(3);
+    const generate = vi.fn(async () => ({ error: 'api' }));
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+    await runner.wake();
+    await runner.resumeAll();
+    expect(runner.getConsecutiveFailures()).toBe(0);
+    expect(runner.isPaused()).toBe(false);
+  });
+
+  it('clamps the threshold to 1..10, falls back to 3 for non-finite, and reads it live', async () => {
+    let t = 0;
+    const { bridge, store } = setup(6);
+    const generate = vi.fn(async () => ({ error: 'api' }));
+    const runner = createRunner({ bridge, store, generate, append: vi.fn(), getThreshold: () => t });
+    await runner.wake(); // 0 clamps to 1
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(runner.getPauseReasons()).toEqual(['failures']);
+    t = 'abc'; // falls back to 3
+    await runner.resumeAll();
+    // counter was reset, so 3 more failures before the next trip
+    expect(generate).toHaveBeenCalledTimes(4);
+    t = 99; // clamps to 10 but only 2 items remain
+    await runner.resumeAll();
+    expect(generate).toHaveBeenCalledTimes(6);
+    expect(runner.isPaused()).toBe(false);
+  });
+});
+
+describe('Prompt Inspector gate', () => {
+  it('pauses with reason inspector, fires listener once, and starts nothing', async () => {
+    const ctx = makeCtx();
+    const bridge = { ...makeBridge(ctx), promptInspectorEnabled: () => true };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    const generate = vi.fn();
+    const runner = createRunner({ bridge, store, generate, append: vi.fn() });
+    const cb = vi.fn();
+    runner.onInspectorPause(cb);
+    await runner.wake();
+    await runner.wake();
+    expect(generate).not.toHaveBeenCalled();
+    expect(runner.getPauseReasons()).toEqual(['inspector']);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(store.pendingCount()).toBe(1);
+  });
+
+  it('does not abort the in-flight item; pauses after it finishes', async () => {
+    const ctx = makeCtx();
+    let on = false;
+    const bridge = { ...makeBridge(ctx), promptInspectorEnabled: () => on };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.add(buildFingerprint(ctx, 0));
+    store.add(buildFingerprint(ctx, 0));
+    const generate = vi.fn(async () => {
+      on = true;
+      return { text: 'x', meta: {} };
+    });
+    const runner = createRunner({ bridge, store, generate, append: vi.fn(async () => 'ok') });
+    await runner.wake();
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(runner.getPauseReasons()).toEqual(['inspector']);
+    expect(store.pendingCount()).toBe(1);
+  });
+});
