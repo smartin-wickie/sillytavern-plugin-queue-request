@@ -3,6 +3,7 @@
 // unit-testable without a live ST instance.
 import { buildFingerprint, fingerprintStatus } from './fingerprint.js';
 import { loadStored } from './persistence.js';
+import { diffConnection } from './connection.js';
 
 const WATCHED_EVENTS = ['MESSAGE_EDITED', 'MESSAGE_DELETED', 'MESSAGE_SENT', 'MESSAGE_RECEIVED'];
 
@@ -23,6 +24,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
   const state = { boundKey: null, boundIntegrity: null };
   let loadToken = 0;
   let initialized = false;
+  let connectionPopupOpen = false;
 
   function schedule(fn) {
     setTimeout(fn, 0);
@@ -161,14 +163,44 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
     }
     if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
     const first = items[0]?.connection ?? null;
-    const answer = await popups.showResume({ count, model: first?.model ?? null, api: first?.api ?? null });
+    const payload = { count, model: first?.model ?? null, api: first?.api ?? null };
+    const current = bridge.connectionSnapshot?.() ?? null;
+    const mismatch = first && current && diffConnection(first, current).length > 0;
+    if (mismatch) payload.connectionNote = { model: current.model ?? null, api: current.api ?? null };
+    const answer = await popups.showResume(payload);
     if (token !== loadToken) return;
     if (answer === 'resume') {
+      // Resume queue counts as consent to the current connection.
+      if (mismatch) store.setConnectionAll(current);
       runner.resume('restored');
     } else if (answer === 'discard') {
       const n = store.clear('discarded');
       toast(`Discarded ${n > 0 ? n : count} queued swipe(s).`);
       runner.resume('restored');
+    }
+  }
+
+  // Connection gate fired by the runner: ask whether to continue on the new connection. Runs
+  // in a scheduled task, never inside an event handler, and never stacks two popups.
+  function onConnectionChanged(info) {
+    const key = bridge.chatKey?.(bridge.ctx()) ?? null;
+    schedule(() => runConnectionPrompt(info, key));
+  }
+
+  async function runConnectionPrompt({ changed, old, current }, key) {
+    if (connectionPopupOpen || !popups?.showConnection) return;
+    if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
+    connectionPopupOpen = true;
+    let answer;
+    try {
+      answer = await popups.showConnection({ changed, old, current });
+    } finally {
+      connectionPopupOpen = false;
+    }
+    if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
+    if (answer === 'continue') {
+      store.setConnectionAll(bridge.connectionSnapshot?.() ?? current);
+      runner.resume('connection');
     }
   }
 
@@ -180,6 +212,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
   };
 
   function start() {
+    runner.onConnectionChanged?.(onConnectionChanged);
     for (const key of WATCHED_EVENTS) {
       const evt = bridge.event_types[key];
       if (!evt) continue;
@@ -195,6 +228,7 @@ export function createLifecycle({ bridge, store, runner, toast, moduleName = 'qu
   }
 
   function stop() {
+    runner.offConnectionChanged?.(onConnectionChanged);
     for (const [evt, h] of handlers.splice(0, handlers.length)) {
       bridge.eventSource.removeListener(evt, h);
     }

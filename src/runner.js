@@ -6,6 +6,7 @@
 
 import { fingerprintStatus } from './fingerprint.js';
 import { abortOwn } from './adapter.js';
+import { diffConnection } from './connection.js';
 
 const APPEND_RETRY_MS = 250;
 const IDLE_RETRY_MS = 250;
@@ -51,6 +52,7 @@ export function createRunner({ bridge, store, generate, append, getThreshold = (
   const doneListeners = new Set();
   const breakerListeners = new Set();
   const inspectorListeners = new Set();
+  const connectionListeners = new Set();
   let consecutive = 0;
 
   function notifyFailed(id, reason) {
@@ -116,7 +118,20 @@ export function createRunner({ bridge, store, generate, append, getThreshold = (
       return true;
     }
 
-    // --- additional start gates (owner, connection) are checked here ---
+    // Connection gate: the queue was built for a specific API/model/preset. If the live one
+    // differs, hold before any spend and let the listener ask the user. Items stay untouched.
+    if (item.connection && bridge.connectionSnapshot) {
+      const current = bridge.connectionSnapshot();
+      const changed = diffConnection(item.connection, current);
+      if (changed.length > 0) {
+        const newlyPaused = !pauseReasons.has('connection');
+        pause('connection');
+        if (newlyPaused) {
+          for (const cb of connectionListeners) cb({ item, changed, old: item.connection, current });
+        }
+        return true;
+      }
+    }
 
     store.markRunning(item.id);
 
@@ -308,6 +323,14 @@ export function createRunner({ bridge, store, generate, append, getThreshold = (
     inspectorListeners.delete(cb);
   }
 
+  function onConnectionChanged(cb) {
+    connectionListeners.add(cb);
+  }
+
+  function offConnectionChanged(cb) {
+    connectionListeners.delete(cb);
+  }
+
   function onStateChange(cb) {
     stateListeners.add(cb);
   }
@@ -365,6 +388,8 @@ export function createRunner({ bridge, store, generate, append, getThreshold = (
     offBreakerTrip,
     onInspectorPause,
     offInspectorPause,
+    onConnectionChanged,
+    offConnectionChanged,
     onStateChange,
     offStateChange,
     invalidate,

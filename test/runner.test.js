@@ -807,3 +807,62 @@ describe('Prompt Inspector gate', () => {
     expect(store.pendingCount()).toBe(1);
   });
 });
+
+describe('Connection gate', () => {
+  const conn = { api: 'openai', model: 'm1', preset: 'p1' };
+
+  function setupGate(snapshot, itemConn = conn, withSnapshot = true) {
+    const ctx = makeCtx();
+    const bridge = { ...makeBridge(ctx) };
+    if (withSnapshot) bridge.connectionSnapshot = () => snapshot.cur;
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const { item } = store.add(buildFingerprint(ctx, 0));
+    item.connection = itemConn;
+    const generate = vi.fn(async () => ({ text: 'x', meta: {} }));
+    const runner = createRunner({ bridge, store, generate, append: vi.fn(async () => 'ok') });
+    return { store, runner, generate, item };
+  }
+
+  it('pauses with reason connection, notifies once, starts nothing', async () => {
+    const snap = { cur: { ...conn, model: 'm2' } };
+    const { runner, generate, store, item } = setupGate(snap);
+    const cb = vi.fn();
+    runner.onConnectionChanged(cb);
+    await runner.wake();
+    expect(generate).not.toHaveBeenCalled();
+    expect(runner.getPauseReasons()).toEqual(['connection']);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb.mock.calls[0][0]).toMatchObject({ changed: ['model'], old: conn, current: snap.cur });
+    expect(store.getItems()[0].status).toBe('queued');
+    expect(item.connection).toEqual(conn);
+  });
+
+  it('re-fires on Resume while the connection still differs', async () => {
+    const snap = { cur: { ...conn, api: 'other' } };
+    const { runner, generate } = setupGate(snap);
+    const cb = vi.fn();
+    runner.onConnectionChanged(cb);
+    await runner.wake();
+    await runner.resumeAll();
+    expect(cb).toHaveBeenCalledTimes(2);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('runs when the connection is unchanged', async () => {
+    const { runner, generate } = setupGate({ cur: { ...conn } });
+    await runner.wake();
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips null fields, null item connection and a missing bridge snapshot', async () => {
+    let s = setupGate({ cur: { api: 'x', model: null, preset: null } }, { api: 'x', model: 'm', preset: 'p' });
+    await s.runner.wake();
+    expect(s.generate).toHaveBeenCalledTimes(1);
+    s = setupGate({ cur: { ...conn, model: 'zz' } }, null);
+    await s.runner.wake();
+    expect(s.generate).toHaveBeenCalledTimes(1);
+    s = setupGate(null, conn, false);
+    await s.runner.wake();
+    expect(s.generate).toHaveBeenCalledTimes(1);
+  });
+});

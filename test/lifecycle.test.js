@@ -247,7 +247,7 @@ describe('handleChatChanged', () => {
     const toast = vi.fn();
     const lifecycle = createLifecycle({ bridge, store, runner, toast, moduleName: 'queuedSwipes', promptResume, popups });
     lifecycle.start();
-    return { state, eventSource, store, runner, toast, lifecycle };
+    return { bridge, state, eventSource, store, runner, toast, lifecycle };
   }
 
   function validBlob(n = 1, createdAt = NOW - 1000) {
@@ -423,6 +423,106 @@ describe('handleChatChanged', () => {
       empty.eventSource.emit('CHAT_CHANGED');
       await vi.runAllTimersAsync();
       expect(empty.showResume).not.toHaveBeenCalled();
+    });
+
+    describe('connection handling', () => {
+      const old = { api: 'openai', model: 'gpt-x', preset: 'p1' };
+
+      function withConn(result, snapshot, showConnection) {
+        const blob = validBlob(2);
+        blob.items.forEach((it) => { it.connection = { ...old }; });
+        const showResume = vi.fn(async () => result);
+        const s = chatSetup({ stored: blob, popups: { showResume, showConnection } });
+        s.bridge.connectionSnapshot = () => snapshot;
+        return { ...s, showResume };
+      }
+
+      it('merges a mismatch into ONE resume popup and consent updates connections', async () => {
+        const cur = { api: 'openai', model: 'gpt-y', preset: 'p1' };
+        const showConnection = vi.fn();
+        const s = withConn('resume', cur, showConnection);
+        s.store.setConnectionAll = vi.fn();
+        s.eventSource.emit('CHAT_CHANGED');
+        await vi.runAllTimersAsync();
+        expect(s.showResume).toHaveBeenCalledTimes(1);
+        expect(s.showResume).toHaveBeenCalledWith({
+          count: 2, model: 'gpt-x', api: 'openai', connectionNote: { model: 'gpt-y', api: 'openai' },
+        });
+        expect(showConnection).not.toHaveBeenCalled();
+        expect(s.store.setConnectionAll).toHaveBeenCalledWith(cur);
+        expect(s.runner.resume).toHaveBeenCalledWith('restored');
+        expect(s.store.clear).not.toHaveBeenCalled();
+      });
+
+      it('no connectionNote and no setConnectionAll when unchanged', async () => {
+        const s = withConn('resume', { ...old }, vi.fn());
+        s.store.setConnectionAll = vi.fn();
+        s.eventSource.emit('CHAT_CHANGED');
+        await vi.runAllTimersAsync();
+        expect(s.showResume).toHaveBeenCalledWith({ count: 2, model: 'gpt-x', api: 'openai' });
+        expect(s.store.setConnectionAll).not.toHaveBeenCalled();
+      });
+
+      it('dismiss on the combined popup does not update connections', async () => {
+        const s = withConn('dismiss', { ...old, model: 'gpt-y' }, vi.fn());
+        s.store.setConnectionAll = vi.fn();
+        s.eventSource.emit('CHAT_CHANGED');
+        await vi.runAllTimersAsync();
+        expect(s.store.setConnectionAll).not.toHaveBeenCalled();
+      });
+
+      describe('runner onConnectionChanged', () => {
+        function gateSetup(answer) {
+          const showConnection = vi.fn(async () => answer);
+          const s = withConn('dismiss', { ...old }, showConnection);
+          let handler = null;
+          s.runner.onConnectionChanged = vi.fn((h) => { handler = h; });
+          s.runner.offConnectionChanged = vi.fn();
+          s.store.setConnectionAll = vi.fn();
+          s.lifecycle.stop();
+          s.lifecycle.start();
+          const cur = { api: 'openai', model: 'gpt-z', preset: 'p1' };
+          s.bridge.connectionSnapshot = () => cur;
+          return { ...s, showConnection, fire: () => handler({ changed: ['model'], old, current: cur }), cur };
+        }
+
+        it('continue updates all connections and resumes', async () => {
+          const s = gateSetup('continue');
+          s.fire();
+          await vi.runAllTimersAsync();
+          expect(s.showConnection).toHaveBeenCalledWith({ changed: ['model'], old, current: s.cur });
+          expect(s.store.setConnectionAll).toHaveBeenCalledWith(s.cur);
+          expect(s.runner.resume).toHaveBeenCalledWith('connection');
+        });
+
+        it.each(['keep', null, undefined])('answer %s stays paused', async (answer) => {
+          const s = gateSetup(answer);
+          s.fire();
+          await vi.runAllTimersAsync();
+          expect(s.store.setConnectionAll).not.toHaveBeenCalled();
+          expect(s.runner.resume).not.toHaveBeenCalledWith('connection');
+        });
+
+        it('does not stack a second popup while one is open', async () => {
+          let release;
+          const s = gateSetup('continue');
+          s.showConnection.mockImplementation(() => new Promise((r) => { release = r; }));
+          s.fire();
+          s.fire();
+          await vi.runAllTimersAsync();
+          expect(s.showConnection).toHaveBeenCalledTimes(1);
+          release('keep');
+          await vi.runAllTimersAsync();
+        });
+
+        it('is silent when the chat key changed before the popup', async () => {
+          const s = gateSetup('continue');
+          s.fire();
+          s.state.key = 'av/other';
+          await vi.runAllTimersAsync();
+          expect(s.showConnection).not.toHaveBeenCalled();
+        });
+      });
     });
 
     it('passes the oldest item connection to the popup', async () => {
