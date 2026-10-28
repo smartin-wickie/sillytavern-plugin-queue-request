@@ -31,7 +31,13 @@ function isPlainObject(v) {
 export function createOwnership({
   storage,
   now = Date.now,
-  timers = { setInterval, clearInterval, setTimeout },
+  // Wrapped, not bare references: browsers throw "Illegal invocation" when the global timer
+  // functions are called as methods of another object (timers.setTimeout(...)).
+  timers = {
+    setInterval: (fn, ms) => setInterval(fn, ms),
+    clearInterval: (h) => clearInterval(h),
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+  },
   win,
   tabId = makeTabId(),
 } = {}) {

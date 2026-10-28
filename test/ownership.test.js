@@ -99,6 +99,30 @@ describe('claim', () => {
   });
 });
 
+describe('default timers', () => {
+  // Browser timer globals throw "Illegal invocation" when called with a foreign `this`.
+  it('claims and heartbeats with this-sensitive global timers', async () => {
+    const strict = (orig) => function (...args) {
+      if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+      return orig(...args);
+    };
+    vi.stubGlobal('setTimeout', strict(globalThis.setTimeout));
+    vi.stubGlobal('setInterval', strict(globalThis.setInterval));
+    vi.stubGlobal('clearInterval', strict(globalThis.clearInterval));
+    try {
+      const storage = makeStorage();
+      const { own } = tab(storage, makeWin(), 'tab-a');
+      expect(await claim(own)).toEqual({ role: 'owner' });
+      const ts = JSON.parse(storage.getItem(LEASE)).ts;
+      await vi.advanceTimersByTimeAsync(HEARTBEAT_MS + 1);
+      expect(JSON.parse(storage.getItem(LEASE)).ts).toBeGreaterThan(ts);
+      own.stop();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 describe('heartbeat, demotion and takeover', () => {
   it('owner heartbeat refreshes the lease ts', async () => {
     const storage = makeStorage();
