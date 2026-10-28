@@ -362,3 +362,47 @@ describe('chat-bound persistence', () => {
     expect(c.saveMetadataDebounced).not.toHaveBeenCalled();
   });
 });
+
+describe('store connection recording', () => {
+  it('add() records a copied connection snapshot', () => {
+    const snap = { api: 'openai', model: 'm1', preset: 'p1' };
+    const bridge = { ...makeFakeBridge(), connectionSnapshot: () => snap };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const { item } = store.add(fp());
+    expect(item.connection).toEqual(snap);
+    expect(item.connection).not.toBe(snap);
+  });
+
+  it('add() leaves connection null when the bridge has no connectionSnapshot', () => {
+    const store = createStore({ bridge: makeFakeBridge(), maxQueueSize: 5 });
+    expect(store.add(fp()).item.connection).toBeNull();
+  });
+
+  it('setConnectionAll() updates active items only, notifies once and persists', () => {
+    const save = vi.fn();
+    const bridge = {
+      ...makeFakeBridge(),
+      chatKey: () => 'k',
+      ctx: () => ({ chat: [{}], chatMetadata: { integrity: 'i' }, saveChat: vi.fn(), saveMetadataDebounced: save }),
+    };
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    store.bindChat('k', 'i');
+    const a = store.add(fp(0)).item;
+    const b = store.add(fp(0)).item;
+    const c = store.add(fp(0)).item;
+    store.markDone(c.id);
+    store.drop(b.id, 'api');
+    const cb = vi.fn();
+    store.onChange(cb);
+    save.mockClear();
+    const snap = { api: 'x', model: 'y', preset: 'z' };
+    store.setConnectionAll(snap);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(save).toHaveBeenCalledTimes(1);
+    const items = store.getItems();
+    expect(items.find((i) => i.id === a.id).connection).toEqual(snap);
+    expect(items.find((i) => i.id === a.id).connection).not.toBe(snap);
+    expect(items.find((i) => i.id === b.id).connection).toBeNull();
+    expect(items.find((i) => i.id === c.id).connection).toBeNull();
+  });
+});

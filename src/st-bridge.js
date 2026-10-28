@@ -82,6 +82,22 @@ export function canQueue() {
 }
 
 /**
+ * Snapshot of the live connection: API, model and preset name. The preset is recorded by name
+ * only, so an in-place edit of a preset is not detected. Read fresh on every call.
+ */
+export function connectionSnapshot() {
+  const c = ctx();
+  let preset = null;
+  if (c.mainApi === 'openai') preset = c.chatCompletionSettings?.preset_settings_openai ?? null;
+  else if (c.mainApi === 'textgenerationwebui') preset = c.textCompletionSettings?.preset ?? null;
+  return {
+    api: getGeneratingApi() ?? null,
+    model: getGeneratingModel() ?? null,
+    preset,
+  };
+}
+
+/**
  * Is the Prompt Inspector extension both installed/enabled and switched on? It stores its toggle
  * in localStorage and emits no event, so this must be polled at the point of use. Policy-level
  * check: Prompt Inspector skips the dry run the capture depends on.

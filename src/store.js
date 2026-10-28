@@ -118,6 +118,15 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     return items.find((item) => item.id === id);
   }
 
+  function snapshotConnection() {
+    try {
+      const snap = bridge?.connectionSnapshot?.();
+      return snap ? { ...snap } : null;
+    } catch {
+      return null;
+    }
+  }
+
   function add(fingerprint) {
     if (pendingCount() + runningCount() >= effectiveCap()) {
       return { ok: false, reason: 'max' };
@@ -128,6 +137,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
       status: 'queued',
       attempts: 0,
       fingerprint,
+      connection: snapshotConnection(),
     };
     items.push(item);
     notify();
@@ -199,6 +209,21 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     if (touched) notify();
   }
 
+  // Records `snapshot` as the connection of every queued/running item (user consented to the
+  // current connection). Each item gets its own copy.
+  function setConnectionAll(snapshot) {
+    if (!snapshot) return;
+    let touched = false;
+    for (const item of items) {
+      if (item.status !== 'queued' && item.status !== 'running') continue;
+      item.connection = { ...snapshot };
+      touched = true;
+    }
+    if (!touched) return;
+    notify();
+    persist();
+  }
+
   function onReset(cb) {
     resetListeners.add(cb);
   }
@@ -249,6 +274,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     drop,
     clear,
     refingerprintAll,
+    setConnectionAll,
     onReset,
     offReset,
     persist,
