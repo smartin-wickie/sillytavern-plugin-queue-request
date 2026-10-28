@@ -615,6 +615,7 @@ describe('ownership integration', () => {
     lifecycle.start();
     return {
       state,
+      bridge,
       eventSource,
       store,
       runner,
@@ -681,7 +682,7 @@ describe('ownership integration', () => {
   });
 
   it('takeover with items rebinds paused, toasts, and never opens a popup', async () => {
-    const s = ownSetup({ role: 'readonly', stored: blob(2) });
+    const s = ownSetup({ role: 'readonly', snapshot: builtSnapshot(2) });
     s.eventSource.emit('CHAT_CHANGED');
     await vi.runAllTimersAsync();
     s.calls.length = 0;
@@ -739,11 +740,134 @@ describe('ownership integration', () => {
   });
 
   it('takeover falls back to chat metadata when the snapshot is unusable (CR-01)', async () => {
-    const s = ownSetup({ role: 'readonly', stored: blob(3), snapshot: { items: [] } });
+    const s = ownSetup({ role: 'readonly', snapshot: { items: [] } });
     s.eventSource.emit('CHAT_CHANGED');
     await vi.runAllTimersAsync();
+    // No reloadCurrentChat on this context; metadata refreshed by some other load.
+    s.state.ctx.chatMetadata.queuedSwipes = blob(3);
     s.fireRole({ role: 'owner', reason: 'takeover' });
     expect(s.store.rebind.mock.lastCall[0]).toHaveLength(3);
+  });
+
+  function freshCtxWith(s, stored) {
+    return { ...s.state.ctx, chatMetadata: { integrity: 'i1', queuedSwipes: stored } };
+  }
+
+  it('takeover reloads the chat before binding and loads the fresh server metadata (CR-02)', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(3), snapshot: builtSnapshot(1) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    let finishReload;
+    s.state.ctx.reloadCurrentChat = vi.fn(
+      () =>
+        new Promise((r) => {
+          finishReload = r;
+        }),
+    );
+    s.calls.length = 0;
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    expect(s.state.ctx.reloadCurrentChat).toHaveBeenCalledTimes(1);
+    expect(s.calls).toContain('pause:takeover');
+    // Nothing is bound or made writable while the reload is in flight.
+    expect(s.calls).not.toContain('ro:false');
+    expect(s.store.bindChat).not.toHaveBeenCalled();
+    // The reload replaces the context and fires a same-chat CHAT_CHANGED (a no-op).
+    s.state.ctx = freshCtxWith(s, blob(2));
+    s.eventSource.emit('CHAT_CHANGED');
+    finishReload();
+    await vi.runAllTimersAsync();
+    expect(s.ownership.claim).toHaveBeenCalledTimes(1);
+    expect(s.store.setReadOnly).toHaveBeenLastCalledWith(false);
+    expect(s.store.rebind.mock.lastCall[0].map((i) => i.id)).toEqual(['s0', 's1']);
+    expect(s.toast).toHaveBeenCalledWith(TAKEOVER);
+  });
+
+  it('takeover after a reload with an empty fresh queue releases its hold (CR-02)', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(1) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    s.state.ctx.reloadCurrentChat = vi.fn(async () => {
+      s.state.ctx = freshCtxWith(s, undefined);
+    });
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    await vi.runAllTimersAsync();
+    expect(s.store.rebind.mock.lastCall[0]).toHaveLength(0);
+    expect(s.runner.resume).toHaveBeenCalledWith('takeover');
+    expect(s.toast).not.toHaveBeenCalledWith(TAKEOVER);
+  });
+
+  it('a failed takeover reload keeps the queue paused (CR-02)', async () => {
+    const s = ownSetup({ role: 'readonly' });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    s.state.ctx.reloadCurrentChat = vi.fn(async () => {
+      throw new Error('offline');
+    });
+    s.runner.resume.mockClear();
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    await vi.runAllTimersAsync();
+    expect(s.runner.pause).toHaveBeenCalledWith('takeover');
+    expect(s.runner.resume).not.toHaveBeenCalledWith('takeover');
+    warn.mockRestore();
+  });
+
+  it('takeover defers the reload while a native generation runs (CR-02)', async () => {
+    const s = ownSetup({ role: 'readonly' });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    let generating = true;
+    s.bridge.isGenerating = () => generating;
+    s.state.ctx.reloadCurrentChat = vi.fn(async () => {});
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(s.state.ctx.reloadCurrentChat).not.toHaveBeenCalled();
+    generating = false;
+    await vi.advanceTimersByTimeAsync(600);
+    expect(s.state.ctx.reloadCurrentChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('a chat switch during the takeover reload abandons the takeover (CR-02)', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(2) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    let finishReload;
+    s.state.ctx.reloadCurrentChat = vi.fn(
+      () =>
+        new Promise((r) => {
+          finishReload = r;
+        }),
+    );
+    s.fireRole({ role: 'owner', reason: 'takeover' });
+    s.state.key = 'av/c2';
+    s.state.ctx = { ...s.state.ctx, chatId: 'c2', chatMetadata: { integrity: 'i2' } };
+    s.eventSource.emit('CHAT_CHANGED');
+    finishReload();
+    await vi.runAllTimersAsync();
+    expect(s.toast).not.toHaveBeenCalledWith(TAKEOVER);
+    expect(s.ownership.claim).toHaveBeenCalledTimes(2);
+    expect(s.store.bindChat).not.toHaveBeenCalled();
+  });
+
+  it('demotion drops the queue from the local chat metadata without saving (CR-02)', async () => {
+    const s = ownSetup({ stored: blob(2) });
+    s.state.ctx.saveChat = vi.fn();
+    s.state.ctx.saveMetadataDebounced = vi.fn();
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.state.ctx.chatMetadata.queuedSwipes).toBeDefined();
+    s.fireRole({ role: 'readonly', reason: 'demoted' });
+    expect(s.state.ctx.chatMetadata.queuedSwipes).toBeUndefined();
+    expect(s.state.ctx.chatMetadata.integrity).toBe('i1');
+    expect(s.state.ctx.saveChat).not.toHaveBeenCalled();
+    expect(s.state.ctx.saveMetadataDebounced).not.toHaveBeenCalled();
+  });
+
+  it('a read-only claim drops the queue from the local chat metadata (CR-02)', async () => {
+    const s = ownSetup({ role: 'readonly', stored: blob(2) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.state.ctx.chatMetadata.queuedSwipes).toBeUndefined();
   });
 
   it('demotion invalidates, aborts with discard, then goes read-only, without a toast', async () => {

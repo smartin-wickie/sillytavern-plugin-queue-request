@@ -160,6 +160,7 @@ export function createLifecycle({
           state.boundKey = liveKey;
           state.boundIntegrity = live.chatMetadata?.integrity ?? null;
           store.setReadOnly(true);
+          dropLocalQueue();
           toast(READONLY_TOAST);
           return;
         }
@@ -199,6 +200,22 @@ export function createLifecycle({
     }
   }
 
+  // A non-owner tab must not keep a queue in its own in-memory chat metadata: a later native
+  // save in this tab would write that stale copy back and resurrect items the owner already
+  // finished or cleared. Local only; nothing is saved here.
+  function dropLocalQueue() {
+    try {
+      const meta = bridge.ctx()?.chatMetadata;
+      if (meta && typeof meta === 'object') delete meta[moduleName];
+    } catch (err) {
+      console.warn('[queuedSwipes] could not drop the local queue copy', err);
+    }
+  }
+
+  function isStillOwner() {
+    return typeof ownership?.getRole === 'function' ? ownership.getRole() === 'owner' : true;
+  }
+
   // Ownership role changes. Takeover always lands paused with no popup and no auto-run;
   // demotion makes this tab inert (no failure toast, no writes).
   function onRoleChange({ role, reason } = {}) {
@@ -206,20 +223,59 @@ export function createLifecycle({
       runner.invalidate();
       runner.abortRunning({ disposition: 'discard' });
       store.setReadOnly(true);
+      dropLocalQueue();
       return;
     }
     if (role !== 'owner' || reason !== 'takeover') return;
     if (state.boundKey === null) return;
     const c = bridge.ctx();
     if ((bridge.chatKey?.(c) ?? null) !== state.boundKey) return;
+    if (typeof c.reloadCurrentChat !== 'function') {
+      finishTakeover({ reloaded: false, held: false });
+      return;
+    }
+    // While read-only this tab never reloaded its chat, so its copy misses everything the old
+    // owner appended and saved. Reload from the server before binding or writing anything; the
+    // store stays read-only and the runner stays held until the fresh chat is in place.
+    runner.pause('takeover');
+    reloadForTakeover(loadToken, state.boundKey);
+  }
+
+  async function reloadForTakeover(token, key) {
+    if (token !== loadToken || !isStillOwner()) return;
+    if (bridge.isGenerating?.()) {
+      setTimeout(() => reloadForTakeover(token, key), 500);
+      return;
+    }
+    let reloaded = false;
+    try {
+      // Same chat: the CHAT_CHANGED it fires hits the same-key/integrity no-op branch.
+      await bridge.ctx().reloadCurrentChat();
+      reloaded = true;
+    } catch (err) {
+      console.warn('[queuedSwipes] chat reload on takeover failed; queue stays paused', err);
+    }
+    // A real chat switch (or a changed integrity) during the reload re-ran the full load path.
+    if (token !== loadToken || !isStillOwner()) return;
+    if ((bridge.chatKey?.(bridge.ctx()) ?? null) !== key) return;
+    finishTakeover({ reloaded, held: true });
+  }
+
+  // Binds the store and loads the queue for a tab that just took ownership. After a reload the
+  // server's chat metadata is authoritative; without one, prefer the previous owner's snapshot
+  // and fall back to chat metadata when it is missing or unusable.
+  function finishTakeover({ reloaded, held }) {
+    const c = bridge.ctx();
+    if ((bridge.chatKey?.(c) ?? null) !== state.boundKey) return;
     const integrity = c.chatMetadata?.integrity ?? null;
     state.boundIntegrity = integrity;
     store.setReadOnly(false);
     store.bindChat(state.boundKey, integrity);
-    // Prefer the previous owner's snapshot; a missing or unusable one (wrong version, bad
-    // shape) falls back to chat metadata instead of silently restoring nothing.
-    const snapshot = ownership?.readState?.()?.snapshot;
-    let result = snapshot ? loadStored(snapshot, c, Date.now(), { maxItems: 20 }) : null;
+    let result = null;
+    if (!reloaded) {
+      const snapshot = ownership?.readState?.()?.snapshot;
+      if (snapshot) result = loadStored(snapshot, c, Date.now(), { maxItems: 20 });
+    }
     if (!result || result.ignored) {
       result = loadStored(c.chatMetadata?.[moduleName], c, Date.now(), { maxItems: 20 });
     }
@@ -232,6 +288,8 @@ export function createLifecycle({
       toast(TAKEOVER_TOAST);
     } else {
       runner.resume('restored');
+      // A failed reload keeps the hold: the chat may be stale, so nothing runs without Resume.
+      if (held && reloaded) runner.resume('takeover');
     }
   }
 
