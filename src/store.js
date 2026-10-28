@@ -27,6 +27,9 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
   let boundKey = null;
   let boundIntegrity = null;
   let readOnly = false;
+  let completedRun = 0;
+  let snapshotStats = { reasons: [], failures: 0, completed: 0 };
+  const readOnlyListeners = new Set();
   const listeners = new Set();
   const resetListeners = new Set();
 
@@ -112,6 +115,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
   // Replaces the in-memory queue wholesale (chat load). Never persists.
   function rebind(newItems) {
     items = Array.isArray(newItems) ? newItems.slice() : [];
+    completedRun = 0;
     for (const cb of [...resetListeners]) cb();
     notify();
   }
@@ -134,6 +138,45 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     const next = Boolean(flag);
     if (next === readOnly) return;
     readOnly = next;
+    for (const cb of [...readOnlyListeners]) cb();
+    notify();
+  }
+
+  function onReadOnlyChange(cb) {
+    readOnlyListeners.add(cb);
+  }
+
+  function offReadOnlyChange(cb) {
+    readOnlyListeners.delete(cb);
+  }
+
+  // Completed items of the current run: the owner counts markDone calls; a read-only tab
+  // reports the owner's published figure.
+  function getCompleted() {
+    return readOnly ? snapshotStats.completed : completedRun;
+  }
+
+  function getSnapshotStats() {
+    return { reasons: [...snapshotStats.reasons], failures: snapshotStats.failures, completed: snapshotStats.completed };
+  }
+
+  // Display-only: replaces items with a validated snapshot from the owning tab. Never persists
+  // and is ignored unless this tab is read-only.
+  function applySnapshot(parsed) {
+    if (!readOnly || !parsed || !Array.isArray(parsed.items)) return;
+    items = parsed.items.map((it) => ({
+      id: it.id,
+      status: it.status,
+      createdAt: new Date(it.createdAt),
+      fingerprint: null,
+      connection: null,
+      attempts: 0,
+    }));
+    snapshotStats = {
+      reasons: Array.isArray(parsed.reasons) ? parsed.reasons.slice() : [],
+      failures: Number.isFinite(parsed.failures) ? parsed.failures : 0,
+      completed: Number.isFinite(parsed.completed) ? parsed.completed : 0,
+    };
     notify();
   }
 
@@ -146,6 +189,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     if (pendingCount() + runningCount() >= effectiveCap()) {
       return { ok: false, reason: 'max' };
     }
+    if (pendingCount() + runningCount() === 0) completedRun = 0;
     const item = {
       id: nextId(),
       createdAt: new Date(),
@@ -183,6 +227,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     const item = findById(id);
     if (!item) return;
     item.status = 'done';
+    completedRun += 1;
     notify();
     persist();
   }
@@ -206,6 +251,7 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
       item.status = 'failed';
       item.reason = reason;
     }
+    completedRun = 0;
     for (const cb of [...resetListeners]) cb();
     notify();
     persist();
@@ -296,6 +342,11 @@ export function createStore({ bridge, maxQueueSize = DEFAULT_MAX_QUEUE, moduleNa
     persistExcluding,
     setReadOnly,
     isReadOnly,
+    onReadOnlyChange,
+    offReadOnlyChange,
+    getCompleted,
+    getSnapshotStats,
+    applySnapshot,
     bindChat,
     unbind,
     rebind,

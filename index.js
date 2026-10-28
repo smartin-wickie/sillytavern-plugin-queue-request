@@ -6,6 +6,8 @@ import { createRunner } from './src/runner.js';
 import { createGuard } from './src/guard.js';
 import { createLifecycle } from './src/lifecycle.js';
 import { createOwnership } from './src/ownership.js';
+import { createMirror } from './src/mirror.js';
+import { buildSnapshot, parseSnapshot } from './src/persistence.js';
 import { appendSwipe } from './src/appender.js';
 import { showResumePopup, showConnectionPopup } from './src/popups.js';
 import { registerQueueControl } from './src/ui.js';
@@ -123,6 +125,7 @@ export async function init() {
   const guard = createGuard({ bridge, runner, lifecycle });
   guard.start();
   ownership.start();
+  createMirror({ store, runner, ownership, buildSnapshot, parseSnapshot }).start();
   lifecycle.start();
   // A chat may already be open when the extension initialises (CHAT_CHANGED already fired);
   // the dedupe in handleChatChanged makes repeated calls harmless.

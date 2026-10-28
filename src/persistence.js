@@ -116,3 +116,68 @@ export function loadStored(raw, ctx, now = Date.now(), { maxItems = DEFAULT_MAX_
   }
   return { items: kept, dropped: rawCount - kept.length, rawCount, ignored: false };
 }
+
+const SNAPSHOT_REASONS = ['takeover', 'restored', 'inspector', 'connection', 'failures', 'native'];
+
+function nonNegInt(v) {
+  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+}
+
+/** Build the owner's published display snapshot from live store items and runner state. */
+export function buildSnapshot({ items, completed, reasons, failures } = {}) {
+  const out = [];
+  for (const item of items ?? []) {
+    if (item.status !== 'queued' && item.status !== 'running') continue;
+    const fp = item.fingerprint ?? {};
+    const conn = item.connection ?? {};
+    out.push({
+      id: item.id,
+      status: item.status,
+      createdAt: toMs(item.createdAt),
+      target: {
+        mesId: fp.mesId,
+        chatLength: fp.chatLength,
+        swipe0Hash: fp.swipe0Hash,
+        name: fp.name,
+      },
+      connection: {
+        api: strOrNull(conn.api),
+        model: strOrNull(conn.model),
+        preset: strOrNull(conn.preset),
+      },
+    });
+  }
+  return {
+    items: out.slice(0, DEFAULT_MAX_ITEMS),
+    completed: nonNegInt(completed),
+    reasons: (Array.isArray(reasons) ? reasons : []).filter((r) => SNAPSHOT_REASONS.includes(r)),
+    failures: nonNegInt(failures),
+  };
+}
+
+/** Validate an untrusted snapshot from another tab; returns the clean shape or null. */
+export function parseSnapshot(raw) {
+  if (!isObject(raw) || !Array.isArray(raw.items)) return null;
+  if (!Number.isFinite(raw.completed) || !Number.isFinite(raw.failures)) return null;
+  if (!Array.isArray(raw.reasons)) return null;
+  const items = [];
+  for (const it of raw.items.slice(0, DEFAULT_MAX_ITEMS)) {
+    if (!isObject(it)) return null;
+    if (typeof it.id !== 'string' || it.id === '') return null;
+    if (it.status !== 'queued' && it.status !== 'running') return null;
+    if (!Number.isFinite(it.createdAt)) return null;
+    items.push({
+      id: it.id,
+      status: it.status,
+      createdAt: it.createdAt,
+      target: isObject(it.target) ? it.target : {},
+      connection: isObject(it.connection) ? it.connection : {},
+    });
+  }
+  return {
+    items,
+    completed: nonNegInt(raw.completed),
+    reasons: raw.reasons.filter((r) => SNAPSHOT_REASONS.includes(r)),
+    failures: nonNegInt(raw.failures),
+  };
+}
