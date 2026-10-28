@@ -121,7 +121,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 04-04-PLAN.md — Resume/discard popup and paused UI states (PERS-02, PERS-03)
+- [x] 04-04-PLAN.md — Resume/discard popup and paused UI states (PERS-02, PERS-03)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -162,5 +162,5 @@ Plans:
 | 1. Route Verification Spike | 7/7 | Complete   | 2026-10-25 |
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
-| 4. Lifecycle, Persistence & Spend Safety | 3/8 | In Progress|  |
+| 4. Lifecycle, Persistence & Spend Safety | 4/8 | In Progress|  |
 | 5. Compatibility & Release | 0/TBD | Not started | - |

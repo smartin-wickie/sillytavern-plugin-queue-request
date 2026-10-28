@@ -54,8 +54,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Persistence
 
 - [x] **PERS-01**: Pending queue is stored in the chat's `chat_metadata` (ids and timestamps only, no prompts) and survives a page refresh
-- [ ] **PERS-02**: On loading a chat with pending items, the queue starts paused and the user is asked to resume or discard (prompt shows count and model)
-- [ ] **PERS-03**: Returning to a chat with a stored queue offers the same resume/discard prompt
+- [x] **PERS-02**: On loading a chat with pending items, the queue starts paused and the user is asked to resume or discard (prompt shows count and model)
+- [x] **PERS-03**: Returning to a chat with a stored queue offers the same resume/discard prompt
 - [x] **PERS-04**: Stored items whose target no longer matches (message changed, deleted, expired) are dropped on load with a notice
 
 ### Spend Safety
@@ -147,8 +147,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GUARD-03 | Phase 4 | Complete |
 | GUARD-06 | Phase 4 | Complete |
 | PERS-01 | Phase 4 | Complete |
-| PERS-02 | Phase 4 | Pending |
-| PERS-03 | Phase 4 | Pending |
+| PERS-02 | Phase 4 | Complete |
+| PERS-03 | Phase 4 | Complete |
 | PERS-04 | Phase 4 | Complete |
 | SAFE-01 | Phase 4 | Pending |
 | SAFE-02 | Phase 4 | Pending |
