@@ -80,17 +80,26 @@ export async function init() {
   ensureSettings(extensionSettings, saveSettingsDebounced);
 
   // Exactly one store/runner instance per loaded chat, not one per click.
-  const store = createStore({ bridge, maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize });
+  const store = createStore({
+    bridge,
+    maxQueueSize: extensionSettings[MODULE_NAME].maxQueueSize,
+    moduleName: MODULE_NAME,
+  });
   const runner = createRunner({ bridge, store, generate, append: appendSwipe });
   const lifecycle = createLifecycle({
     bridge,
     store,
     runner,
+    moduleName: MODULE_NAME,
     toast: (m) => toastr.info(m, '', { preventDuplicates: true }),
   });
   const guard = createGuard({ bridge, runner, lifecycle });
   guard.start();
   lifecycle.start();
+  // A chat may already be open when the extension initialises (CHAT_CHANGED already fired);
+  // the dedupe in handleChatChanged makes repeated calls harmless.
+  if (SillyTavern.getContext().chatId) lifecycle.handleChatChanged();
+  bridge.eventSource.on(bridge.event_types.APP_READY, () => lifecycle.handleChatChanged());
 
   registerQueueControl({ store, runner });
   registerCommands({ store, runner, cancelAll });

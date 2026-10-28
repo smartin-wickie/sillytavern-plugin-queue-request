@@ -204,3 +204,146 @@ describe('createLifecycle', () => {
     expect(s.store.clear).not.toHaveBeenCalled();
   });
 });
+
+describe('handleChatChanged', () => {
+  const NOW = new Date('2026-10-27T12:00:00Z').getTime();
+
+  function chatSetup({ stored, promptResume } = {}) {
+    const chat = [
+      { name: 'u', mes: 'hi', is_user: true },
+      { name: 'Bot', mes: 'hello', swipes: ['hello'] },
+    ];
+    const state = {
+      ctx: {
+        chatId: 'c1',
+        chat,
+        chatMetadata: { integrity: 'i1', queuedSwipes: stored },
+      },
+      key: 'av/c1',
+    };
+    const eventSource = makeEventSource();
+    const bridge = {
+      eventSource,
+      event_types: { ...EVENT_TYPES, CHAT_CHANGED: 'CHAT_CHANGED' },
+      ctx: () => state.ctx,
+      chatKey: () => state.key,
+    };
+    const store = {
+      getItems: () => [],
+      persist: vi.fn(),
+      unbind: vi.fn(),
+      rebind: vi.fn(),
+      bindChat: vi.fn(),
+    };
+    const runner = {
+      pause: vi.fn(),
+      resume: vi.fn(),
+      invalidate: vi.fn(),
+      abortRunning: vi.fn(),
+    };
+    const toast = vi.fn();
+    const lifecycle = createLifecycle({ bridge, store, runner, toast, moduleName: 'queuedSwipes', promptResume });
+    lifecycle.start();
+    return { state, eventSource, store, runner, toast, lifecycle };
+  }
+
+  function validBlob(n = 1, createdAt = NOW - 1000) {
+    return {
+      version: 1,
+      items: Array.from({ length: n }, (_, i) => ({
+        id: `s${i}`,
+        createdAt,
+        target: { mesId: 1, chatLength: 2, swipe0Hash: hash('hello'), name: 'Bot' },
+        connection: { api: null, model: null, preset: null },
+      })),
+    };
+  }
+
+  beforeEach(() => vi.setSystemTime(NOW));
+
+  it('runs the switch prefix synchronously in the documented order', () => {
+    const s = chatSetup({ stored: validBlob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    const order = (fn) => fn.mock.invocationCallOrder[0];
+    expect(s.runner.pause).toHaveBeenCalledWith('restored');
+    expect(order(s.runner.pause)).toBeLessThan(order(s.runner.abortRunning));
+    expect(order(s.runner.abortRunning)).toBeLessThan(order(s.store.rebind));
+    expect(s.runner.abortRunning).toHaveBeenCalledWith({ disposition: 'requeue' });
+    expect(s.runner.resume.mock.calls.map((c) => c[0])).toEqual(['failures', 'connection', 'takeover']);
+    expect(s.store.bindChat).not.toHaveBeenCalled();
+  });
+
+  it('never persists between unbind and bindChat', async () => {
+    const s = chatSetup({ stored: validBlob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    const unbindAt = s.store.unbind.mock.invocationCallOrder[0];
+    const bindAt = s.store.bindChat.mock.invocationCallOrder[0];
+    for (const o of s.store.persist.mock.invocationCallOrder) {
+      expect(o < unbindAt || o > bindAt).toBe(true);
+    }
+  });
+
+  it('loads valid stored items, keeps restored pause, prompts once', async () => {
+    const promptResume = vi.fn();
+    const s = chatSetup({ stored: validBlob(2), promptResume });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.bindChat).toHaveBeenCalledWith('av/c1', 'i1');
+    const loaded = s.store.rebind.mock.calls.at(-1)[0];
+    expect(loaded).toHaveLength(2);
+    expect(s.runner.resume).not.toHaveBeenCalledWith('restored');
+    expect(promptResume).toHaveBeenCalledTimes(1);
+    expect(promptResume.mock.calls[0][0].count).toBe(2);
+    expect(s.toast).not.toHaveBeenCalled();
+  });
+
+  it('same-chat reload does nothing but persist', async () => {
+    const s = chatSetup({ stored: validBlob() });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    vi.clearAllMocks();
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.persist).toHaveBeenCalledTimes(1);
+    expect(s.runner.pause).not.toHaveBeenCalled();
+    expect(s.runner.abortRunning).not.toHaveBeenCalled();
+    expect(s.store.rebind).not.toHaveBeenCalled();
+  });
+
+  it('dropped items toast once and persist immediately; empty result resumes restored', async () => {
+    const s = chatSetup({ stored: validBlob(2, NOW - 25 * 3600 * 1000) });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.toast).toHaveBeenCalledTimes(1);
+    expect(s.toast).toHaveBeenCalledWith(
+      'Dropped 2 saved queued swipe(s): the message changed or they expired.',
+    );
+    expect(s.store.persist).toHaveBeenCalledWith({ immediate: true });
+    expect(s.runner.resume).toHaveBeenCalledWith('restored');
+  });
+
+  it('unknown version leaves metadata untouched and loads nothing', async () => {
+    const s = chatSetup({ stored: { version: 9, items: [1] } });
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.toast).not.toHaveBeenCalled();
+    expect(s.store.rebind.mock.calls.at(-1)[0]).toEqual([]);
+    expect(s.state.ctx.chatMetadata.queuedSwipes).toEqual({ version: 9, items: [1] });
+  });
+
+  it('switch to a chat with no key stays unbound and resumes restored', async () => {
+    const s = chatSetup();
+    s.state.key = null;
+    s.eventSource.emit('CHAT_CHANGED');
+    await vi.runAllTimersAsync();
+    expect(s.store.bindChat).not.toHaveBeenCalled();
+    expect(s.runner.resume).toHaveBeenCalledWith('restored');
+  });
+
+  it('a distinct switch does not clear the inspector reason', () => {
+    const s = chatSetup();
+    s.eventSource.emit('CHAT_CHANGED');
+    expect(s.runner.resume).not.toHaveBeenCalledWith('inspector');
+  });
+});
