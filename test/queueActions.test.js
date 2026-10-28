@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from '../src/store.js';
-import { cancelAll, resumeQueue } from '../src/queueActions.js';
+import { cancelAll, resumeQueue, enqueue, configureQueueActions } from '../src/queueActions.js';
 
 function makeFakeBridge() {
   return {
@@ -65,8 +65,65 @@ describe('cancelAll', () => {
   });
 });
 
+function configure({ pi = false, chat = [{ mes: 'a', name: 'Bot', is_user: false }] } = {}) {
+  const toast = { warning: vi.fn(), info: vi.fn() };
+  const bridge = {
+    ...makeFakeBridge(),
+    ctx: () => ({ chatId: 'chat-1', chatMetadata: { integrity: null }, chat }),
+    promptInspectorEnabled: () => pi,
+  };
+  configureQueueActions({ bridge, toast });
+  return { bridge, toast };
+}
+
+describe('enqueue', () => {
+  it('refuses with the locked toast and never touches the store while Prompt Inspector is on', () => {
+    const { bridge, toast } = configure({ pi: true });
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const addSpy = vi.spyOn(store, 'add');
+    const runner = { wake: vi.fn() };
+    const res = enqueue(store, runner, 2);
+    expect(res).toEqual({ added: 0, requested: 2, refused: 'inspector' });
+    expect(addSpy).not.toHaveBeenCalled();
+    expect(runner.wake).not.toHaveBeenCalled();
+    expect(toast.warning).toHaveBeenCalledWith("Can't start the queue while Prompt Inspector is on. Turn it off, then try again.");
+  });
+
+  it('adds count items sharing one fingerprint and wakes once', () => {
+    const { bridge } = configure();
+    const store = createStore({ bridge, maxQueueSize: 5 });
+    const runner = { wake: vi.fn() };
+    const res = enqueue(store, runner, 3);
+    expect(res).toEqual({ added: 3, requested: 3, refused: null });
+    expect(runner.wake).toHaveBeenCalledTimes(1);
+    const items = store.getItems();
+    expect(items).toHaveLength(3);
+    expect(items[1].fingerprint).toBe(items[0].fingerprint);
+  });
+
+  it('clamps to remaining room', () => {
+    const { bridge } = configure();
+    const store = createStore({ bridge, maxQueueSize: 2 });
+    const runner = { wake: vi.fn() };
+    expect(enqueue(store, runner, 5)).toEqual({ added: 2, requested: 5, refused: null });
+    expect(enqueue(store, runner, 1)).toEqual({ added: 0, requested: 1, refused: null });
+    expect(runner.wake).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('resumeQueue inspector gate', () => {
+  it('refuses with a toast and does not resume while Prompt Inspector is on', () => {
+    const { toast } = configure({ pi: true });
+    const runner = { resumeAll: vi.fn() };
+    resumeQueue({}, runner);
+    expect(runner.resumeAll).not.toHaveBeenCalled();
+    expect(toast.warning).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('resumeQueue', () => {
   it('delegates to runner.resumeAll and returns its result', () => {
+    configure();
     const runner = { resumeAll: vi.fn(() => 'woken') };
     expect(resumeQueue({}, runner)).toBe('woken');
     expect(runner.resumeAll).toHaveBeenCalledTimes(1);

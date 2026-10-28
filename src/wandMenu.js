@@ -2,8 +2,8 @@
 // primitives the badge control and dropdown already use. No per-chat state here, so this
 // registers once on APP_READY and never needs to re-render on CHAT_CHANGED/message events the
 // way the per-message badge does.
-import { eventSource, event_types, ctx } from './st-bridge.js';
-import { buildFingerprint } from './fingerprint.js';
+import { eventSource, event_types } from './st-bridge.js';
+import { enqueue } from './queueActions.js';
 
 /**
  * Register the "Queue swipe" / "Cancel all queued" entries into ST's wand (extensions) menu.
@@ -25,16 +25,12 @@ export function registerWandMenu({ store, runner, cancelAll, canQueue }) {
       </div>
     `);
 
-    // Mirrors ui.js's onControlClick exactly — never diverge from this sequence.
+    // Same gate sequence as ui.js's onControlClick; the add itself goes through the shared enqueue().
     entry.find('#qs-wand-queue').on('click', () => {
       if (!canQueue()) return;
       const n = store.pendingCount() + store.runningCount();
       if (n >= store.getMaxQueueSize()) return;
-      const c = ctx();
-      const target = buildFingerprint(c, c.chat.length - 1);
-      const result = store.add(target);
-      if (!result.ok) return;
-      runner.wake();
+      enqueue(store, runner, 1);
     });
 
     entry.find('#qs-wand-cancel').on('click', () => cancelAll(store, runner));

@@ -1,6 +1,5 @@
-import { ctx, canQueue, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
-import { buildFingerprint } from './fingerprint.js';
-import { cancelAll, resumeQueue } from './queueActions.js';
+import { canQueue, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
+import { cancelAll, resumeQueue, enqueue } from './queueActions.js';
 import { pauseReasonLabel, statusLineFor } from './pauseLabels.js';
 import { createRunAccumulator } from './toastAccumulator.js';
 
@@ -263,7 +262,7 @@ function renderDropdown(control, store, runner) {
 }
 
 // Enqueue a swipe request for the latest message and wake the runner. Re-checks the same
-// full-queue condition renderDisabledState() uses before ever calling store.add() — a
+// full-queue condition renderDisabledState() uses before ever enqueueing — a
 // disabled-looking-but-still-wired control is a real bug class, not just a cosmetic gap.
 function onControlClick(store, runner) {
   // injectControl() only re-checks canQueue() on specific ST re-render events (see
@@ -276,11 +275,7 @@ function onControlClick(store, runner) {
   const n = store.pendingCount() + store.runningCount();
   if (n >= store.getMaxQueueSize()) return;
 
-  const c = ctx();
-  const target = buildFingerprint(c, c.chat.length - 1);
-  const result = store.add(target);
-  if (!result.ok) return;
-  runner.wake();
+  enqueue(store, runner, 1);
 }
 
 /**

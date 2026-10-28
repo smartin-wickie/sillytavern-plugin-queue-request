@@ -2,8 +2,8 @@
 // control and dropdown already use (QUEUE-03/04). No new clamp/cancel logic is derived here —
 // `/queueswipe`'s clamp math mirrors `ui.js`'s `onControlClick` exactly, and `/queuecancel`
 // calls the shared `cancelAll(store, runner)` helper from `queueActions.js`.
-import { ctx, extension_settings, MODULE_NAME } from './st-bridge.js';
-import { buildFingerprint } from './fingerprint.js';
+import { extension_settings, MODULE_NAME } from './st-bridge.js';
+import { enqueue } from './queueActions.js';
 import { pauseReasonLabel } from './pauseLabels.js';
 
 /**
@@ -50,16 +50,8 @@ export function registerCommands({ store, runner, cancelAll }) {
         return '0';
       }
 
-      const toAdd = Math.min(requested, room);
-      const c = ctx();
-      const target = buildFingerprint(c, c.chat.length - 1);
-      let added = 0;
-      for (let i = 0; i < toAdd; i++) {
-        const result = store.add(target);
-        if (!result.ok) break;
-        added++;
-      }
-      if (added > 0) runner.wake();
+      const { added, refused } = enqueue(store, runner, Math.min(requested, room));
+      if (refused) return '0';
 
       if (added === requested) {
         toastr.info(`Queued ${added} swipe(s).`);
