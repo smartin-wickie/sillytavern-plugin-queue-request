@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pauseReasonLabel, statusLineFor } from '../src/pauseLabels.js';
+import { failuresInARow, pauseReasonLabel, statusLineFor } from '../src/pauseLabels.js';
 
 describe('pauseReasonLabel', () => {
   it('returns locked literals', () => {
@@ -10,6 +10,11 @@ describe('pauseReasonLabel', () => {
   });
   it('formats failures with the count', () => {
     expect(pauseReasonLabel('failures', { failures: 3 })).toBe('3 failures in a row');
+  });
+  it('uses the singular for one failure (IN-01)', () => {
+    expect(pauseReasonLabel('failures', { failures: 1 })).toBe('1 failure in a row');
+    expect(failuresInARow(1)).toBe('1 failure in a row');
+    expect(failuresInARow(0)).toBe('0 failures in a row');
   });
   it('returns empty for unknown codes', () => {
     expect(pauseReasonLabel('nope')).toBe('');

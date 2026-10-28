@@ -9,9 +9,15 @@ const LABELS = {
   takeover: 'taken over from another tab',
 };
 
+/** "1 failure in a row" / "3 failures in a row". */
+export function failuresInARow(n) {
+  const count = Number(n) || 0;
+  return `${count} ${count === 1 ? 'failure' : 'failures'} in a row`;
+}
+
 /** Short label for one reason code; '' when unknown. `failures` takes `{ failures }`. */
 export function pauseReasonLabel(code, { failures } = {}) {
-  if (code === 'failures') return `${Number(failures) || 0} failures in a row`;
+  if (code === 'failures') return failuresInARow(failures);
   return LABELS[code] ?? '';
 }
 

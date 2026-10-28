@@ -1,6 +1,6 @@
 import { canQueue, promptInspectorEnabled, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
 import { cancelAll, resumeQueue, enqueue } from './queueActions.js';
-import { pauseReasonLabel, statusLineFor } from './pauseLabels.js';
+import { failuresInARow, pauseReasonLabel, statusLineFor } from './pauseLabels.js';
 import { createRunAccumulator } from './toastAccumulator.js';
 
 const CONTROL_CLASS = 'qs-queue-control';
@@ -359,7 +359,7 @@ export function registerQueueControl({ store, runner }) {
   // Safety pauses always toast, regardless of the notification-style setting.
   runner.onBreakerTrip(({ n }) => {
     toastr.warning(
-      `Queue paused after ${n} failures in a row. Check your connection, then resume from the queue badge.`,
+      `Queue paused after ${failuresInARow(n)}. Check your connection, then resume from the queue badge.`,
       '',
       { preventDuplicates: true },
     );
