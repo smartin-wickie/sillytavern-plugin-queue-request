@@ -38,6 +38,8 @@ export function buildFingerprint(ctx, mesId) {
  * comparing against a stale snapshot.
  */
 export function fingerprintStatus(bridge, fp) {
+  // A mirrored item (read-only tab) has no fingerprint: treat it as no longer matching.
+  if (!fp) return 'target';
   const ctx = bridge.ctx();
 
   if ((ctx.chatId ?? null) !== fp.chatId) return 'chat';

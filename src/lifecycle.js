@@ -46,6 +46,12 @@ export function createLifecycle({
     return store.getItems().filter((item) => item.status === 'queued' || item.status === 'running');
   }
 
+  // A read-only tab shows the owner's mirrored queue (no fingerprints) and owns nothing, so
+  // message events never clear or re-check it here; the owner tab handles them.
+  function isInert() {
+    return Boolean(store.isReadOnly?.());
+  }
+
   function clearQueue(reason) {
     runner.invalidate();
     const n = store.clear(reason);
@@ -54,6 +60,7 @@ export function createLifecycle({
   }
 
   function onEdited(mesId) {
+    if (isInert()) return;
     const active = activeItems();
     if (active.length === 0) return;
     if (mesId !== active[0].fingerprint?.mesId) return;
@@ -61,6 +68,7 @@ export function createLifecycle({
   }
 
   function onDeleted() {
+    if (isInert()) return;
     const active = activeItems();
     if (active.length === 0) return;
     if (fingerprintStatus(bridge, active[0].fingerprint) !== 'target') return;
@@ -68,6 +76,7 @@ export function createLifecycle({
   }
 
   function onSent() {
+    if (isInert()) return;
     if (activeItems().length === 0) return;
     clearQueue('sent');
   }
@@ -75,6 +84,7 @@ export function createLifecycle({
   // An empty-textarea send appends an AI message without MESSAGE_SENT; a native swipe or
   // Continue is not a new message and never clears.
   function onReceived(mesId, type) {
+    if (isInert()) return;
     const active = activeItems();
     if (active.length === 0) return;
     if (type === 'swipe' || type === 'continue') return;

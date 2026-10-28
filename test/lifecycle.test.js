@@ -100,6 +100,34 @@ describe('createLifecycle', () => {
     expect(s.runner.abortRunning).toHaveBeenCalledWith({ disposition: 'discard' });
   });
 
+  it('a read-only tab ignores every message event, even with mirrored items (WR-03)', async () => {
+    const s = setup();
+    s.store.isReadOnly = () => true;
+    // Mirrored items carry no fingerprint.
+    for (const it of s.items) it.fingerprint = null;
+    s.chat.pop();
+    s.state.ctx = makeCtx(s.chat);
+    for (const [evt, ...args] of [
+      ['MESSAGE_DELETED', 1],
+      ['MESSAGE_EDITED', 1],
+      ['MESSAGE_SENT', 2],
+      ['MESSAGE_RECEIVED', 5, 'normal'],
+    ]) {
+      s.eventSource.emit(evt, ...args);
+    }
+    await vi.runAllTimersAsync();
+    expect(s.store.clear).not.toHaveBeenCalled();
+    expect(s.toast).not.toHaveBeenCalled();
+    expect(s.runner.abortRunning).not.toHaveBeenCalled();
+  });
+
+  it('delete with a null-fingerprint item does not throw (WR-03)', async () => {
+    const s = setup();
+    for (const it of s.items) it.fingerprint = null;
+    s.eventSource.emit('MESSAGE_DELETED', 1);
+    await expect(vi.runAllTimersAsync()).resolves.not.toThrow();
+  });
+
   it('edit of an earlier message and MESSAGE_UPDATED do nothing', async () => {
     const s = setup();
     s.eventSource.emit('MESSAGE_EDITED', 1);

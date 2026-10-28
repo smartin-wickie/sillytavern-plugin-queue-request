@@ -130,6 +130,12 @@ describe('fingerprintMatches', () => {
 });
 
 describe('fingerprintStatus', () => {
+  it("returns 'target' for a missing fingerprint instead of throwing (WR-03)", () => {
+    const bridge = makeBridge(makeCtx());
+    expect(fingerprintStatus(bridge, null)).toBe('target');
+    expect(fingerprintStatus(bridge, undefined)).toBe('target');
+  });
+
   it("returns 'ok' when nothing changed and matches fingerprintMatches", () => {
     const ctx = makeCtx();
     const fp = buildFingerprint(ctx, 0);
