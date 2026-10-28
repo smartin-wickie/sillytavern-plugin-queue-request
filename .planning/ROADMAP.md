@@ -153,7 +153,21 @@ Plans:
   2. With ST auto-swipe and auto-continue enabled, queued generations do not trigger cascades of extra generations
   3. README documents install, usage, and the fidelity gaps of the chosen route, and makes no prompt-cache savings claims
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Gap warning toast (bridge detection, once-per-session gate) + COMP-02 unit proofs (COMP-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-02-PLAN.md — Live COMP-01 matrix: preflight, UserSwipes install, baseline, solo, combined, gap-toast (COMP-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 05-03-PLAN.md — Live COMP-02 cascade test + folded Phase 4 HUMAN-UAT (COMP-02)
+- [ ] 05-04-PLAN.md — Packaging decision, README, manifest, LICENSE (COMP-04)
 
 ## Progress
 
@@ -163,4 +177,4 @@ Plans:
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
 | 4. Lifecycle, Persistence & Spend Safety | 8/8 | Complete   | 2026-10-28 |
-| 5. Compatibility & Release | 0/TBD | Not started | - |
+| 5. Compatibility & Release | 0/4 | Not started | - |
