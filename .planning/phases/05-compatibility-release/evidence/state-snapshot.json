@@ -1,0 +1,54 @@
+{
+  "captured_at": "2026-10-28T23:57:26.080Z",
+  "st_url": "http://127.0.0.1:8000/",
+  "st_version": "SillyTavern 1.19.0 'release' (06bde939f)",
+  "disabledExtensions": [
+    "translate",
+    "expressions",
+    "third-party/queued-swipes",
+    "third-party/Deep-Swipe",
+    "third-party/Extension-Mermaid",
+    "third-party/Extension-CodeMirror",
+    "third-party/Extension-LaTeX",
+    "third-party/Extension-SamplerCommands",
+    "third-party/SillyTavern-Character-Creator",
+    "third-party/Extension-CodeRunner",
+    "third-party/Extension-WebSearch",
+    "third-party/Extension-Randomizer"
+  ],
+  "auto_swipe": false,
+  "auto_swipe_minimum_length": 0,
+  "auto_continue": {
+    "enabled": false,
+    "allow_chat_completions": false,
+    "target_length": 400
+  },
+  "squash_system_messages": false,
+  "mainApi": "openai",
+  "chat_completion_source": "custom",
+  "custom_endpoint_host": "127.0.0.1:5000",
+  "custom_model": "dark-desires-32b-v1.5",
+  "promptInspectorEnabled_localStorage": "false",
+  "tts": { "currentProvider": "System", "auto_generation": true },
+  "memory": { "source": "main", "promptInterval": 0 },
+  "queuedSwipes": {
+    "autoJump": false,
+    "circuitBreakerThreshold": 3,
+    "enabled": true,
+    "maxQueueSize": 5,
+    "notificationStyle": "all"
+  },
+  "installed_extension_manifests": {
+    "Deep-Swipe": { "display_name": "Deep Swipe", "version": "1.5.4", "generate_interceptor": null },
+    "Extension-PromptInspector": { "display_name": "Prompt Inspector", "version": "1.1.0", "generate_interceptor": null },
+    "SillyTavern-MessageSummarize": { "display_name": "qvink_memory", "version": "1.3.29", "generate_interceptor": "memory_intercept_messages" },
+    "Extension-Randomizer": { "display_name": "Parameter Randomizer", "version": "1.0.0", "generate_interceptor": "randomizerInterceptor" },
+    "Extension-WebSearch": { "display_name": "WebSearch", "version": "1.2.0", "generate_interceptor": "WebSearch_Intercept" },
+    "queued-swipes": { "display_name": "Queued Swipes", "version": "0.1.0", "generate_interceptor": null },
+    "SillyTavern-SwipePregen": { "display_name": "Swipe Pregeneration", "version": "1.0.0", "generate_interceptor": null },
+    "st-swipe-browse-all": { "display_name": "Swipe: browse all messages (loop) + allow left while generating", "version": "0.3.0", "generate_interceptor": null },
+    "swipe-sculpt": { "display_name": "Swipe Sculpt", "version": "0.2.2", "generate_interceptor": null },
+    "GuidedGenerations-Extension": { "display_name": "Guided Generations Extension", "version": "1.7.8", "generate_interceptor": null }
+  },
+  "notes": "UserSwipes is not installed; the user declined installing it (2026-10-28). The ST install of queued-swipes is a plain copy (not a junction); runtime files were synced from the repo at 05-01 HEAD before testing."
+}
