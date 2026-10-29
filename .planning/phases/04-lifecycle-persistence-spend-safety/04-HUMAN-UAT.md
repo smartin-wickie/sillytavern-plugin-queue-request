@@ -8,7 +8,7 @@ updated: 2026-10-29T00:20:00Z
 
 ## Current Test
 
-Test 2 (CR-03 plain HTTP) is awaiting a LAN-device check by the user.
+Test 2 (CR-03 plain HTTP) deferred by the user (LAN support is low priority).
 
 ## Tests
 
@@ -18,7 +18,7 @@ result: passed (2026-10-28, live, ST 1.19.0). Tab A owned the queue with 3 items
 
 ### 2. CR-03 unique item ids over plain HTTP
 expected: With ST opened over plain HTTP from another LAN device (no `crypto.randomUUID`), queue swipes, reload, queue more; every item runs exactly once and no item regenerates repeatedly.
-result: [manual - user must test from another LAN device over plain HTTP] ST is loopback-only on this machine (config.yaml `listen: false`, whitelist ::1 and 127.0.0.1), and 127.0.0.1 is a secure context with `crypto.randomUUID`. The ST config was not changed (T-05-09). Unit tests cover the `makeTabId` fallback path. See 05-03 Task 3.
+result: [manual - user must test from another LAN device over plain HTTP] ST is loopback-only on this machine (config.yaml `listen: false`, whitelist ::1 and 127.0.0.1), and 127.0.0.1 is a secure context with `crypto.randomUUID`. The ST config was not changed (T-05-09). Unit tests cover the `makeTabId` fallback path. Deferred by the user on 2026-10-28 (LAN support is low priority); not tested live.
 
 ### 3. Demote then takeover restores the queue
 expected: Re-run the smoke observation after the CR-01/CR-02 fixes: an owner that demotes and later takes over restores the saved items (not an empty store) and shows the takeover toast.
@@ -33,8 +33,8 @@ result: passed (2026-10-28, live). B owned the queue, resumed 3 items, and was h
 total: 4
 passed: 3
 issues: 0
-pending: 1
-skipped: 0
+pending: 0
+skipped: 1
 blocked: 0
 
 ## Gaps
