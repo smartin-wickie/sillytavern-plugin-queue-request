@@ -5,16 +5,6 @@
 const STORAGE_KEY = 'qs_gap_warned';
 const TOAST_TIMEOUT_MS = 10000;
 
-/** Escape the characters that matter for HTML interpolation (toastr renders HTML). */
-export function escapeName(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 /** One sentence per active gap. Empty when nothing is active. */
 export function formatGapLines(gaps) {
   const lines = [];
@@ -22,7 +12,9 @@ export function formatGapLines(gaps) {
     lines.push('Auto-swipe filtering is not applied to queued results.');
   }
   if (gaps?.interceptors?.length) {
-    const names = gaps.interceptors.map(escapeName).join(', ');
+    // Plain text: toastr escapes the message itself (escapeHtml: true, set globally by ST and
+    // forced per call below), so escaping here would show `&amp;` etc. in the toast.
+    const names = gaps.interceptors.map((n) => String(n)).join(', ');
     lines.push(`Prompt interceptors (${names}) may not run on queued swipes, though they run on normal swipes.`);
   }
   if (gaps?.squash) {
@@ -58,7 +50,7 @@ export function createGapWarner({ storage } = {}) {
       const lines = formatGapLines(gaps);
       if (lines.length === 0) return false;
       if (alreadyWarned()) return false;
-      toast.warning(`Queued swipes skip some behaviours. ${lines.join(' ')}`, { timeOut: TOAST_TIMEOUT_MS });
+      toast.warning(`Queued swipes skip some behaviours. ${lines.join(' ')}`, { timeOut: TOAST_TIMEOUT_MS, escapeHtml: true });
       markWarned();
       return true;
     } catch {

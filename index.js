@@ -117,7 +117,7 @@ export async function init() {
     bridge,
     toast: {
       info: (m) => toastr.info(m, '', { preventDuplicates: true }),
-      warning: (m, opts) => toastr.warning(m, '', { preventDuplicates: true, ...opts }),
+      warning: (m, opts) => toastr.warning(m, '', { preventDuplicates: true, ...opts, escapeHtml: true }),
     },
     gapWarner: createGapWarner({ storage: sessionStorageHandle }),
   });

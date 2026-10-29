@@ -28,16 +28,11 @@ describe('formatGapLines', () => {
     expect(lines).toContain('may not run');
   });
 
-  it('escapes HTML in extension names', () => {
-    const out = formatGapLines({ ...none, interceptors: ['<img src=x onerror=alert(1)>'] }).join(' ');
-    expect(out).not.toContain('<img');
-    expect(out).not.toContain('>');
-    expect(out).toContain('&lt;img');
-  });
-
-  it('escapes quotes and ampersands', () => {
-    const out = formatGapLines({ ...none, interceptors: [`a&b"c'd`] }).join(' ');
-    expect(out).toContain('a&amp;b&quot;c&#39;d');
+  it('passes extension names through as plain text (toastr does the escaping)', () => {
+    const out = formatGapLines({ ...none, interceptors: [`Foo & Bar`, `Bob's <Helper>`] }).join(' ');
+    expect(out).toContain(`(Foo & Bar, Bob's <Helper>)`);
+    expect(out).not.toContain('&amp;');
+    expect(out).not.toContain('&#39;');
   });
 });
 
@@ -58,7 +53,7 @@ describe('createGapWarner', () => {
     const gaps = { ...none, autoSwipe: true };
     expect(w.maybeWarn(gaps, toast)).toBe(true);
     expect(toast.warning).toHaveBeenCalledTimes(1);
-    expect(toast.warning.mock.calls[0][1]).toMatchObject({ timeOut: 10000 });
+    expect(toast.warning.mock.calls[0][1]).toMatchObject({ timeOut: 10000, escapeHtml: true });
     expect(storage.data.qs_gap_warned).toBe('1');
     expect(w.maybeWarn(gaps, toast)).toBe(false);
     expect(toast.warning).toHaveBeenCalledTimes(1);
@@ -101,7 +96,11 @@ describe('createGapWarner', () => {
         throw new Error('boom');
       }),
     };
-    const w = createGapWarner({ storage: memStorage() });
-    expect(() => w.maybeWarn({ ...none, autoSwipe: true }, toast)).not.toThrow();
+    const storage = memStorage();
+    const w = createGapWarner({ storage });
+    const gaps = { ...none, autoSwipe: true };
+    expect(() => w.maybeWarn(gaps, toast)).not.toThrow();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(w.maybeWarn(gaps, { warning: vi.fn() })).toBe(true);
   });
 });
