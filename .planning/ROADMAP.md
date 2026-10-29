@@ -162,7 +162,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-02-PLAN.md — Live COMP-01 matrix: preflight, UserSwipes install, baseline, solo, combined, gap-toast (COMP-01)
+- [x] 05-02-PLAN.md — Live COMP-01 matrix: preflight, UserSwipes install, baseline, solo, combined, gap-toast (COMP-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -179,4 +179,4 @@ Plans:
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
 | 4. Lifecycle, Persistence & Spend Safety | 8/8 | Complete   | 2026-10-28 |
-| 5. Compatibility & Release | 1/4 | In Progress|  |
+| 5. Compatibility & Release | 2/4 | In Progress|  |
