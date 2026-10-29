@@ -75,10 +75,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Compatibility & Release
 
-- [ ] **COMP-01**: Verified working alongside Deep-Swipe, UserSwipes, and Prompt Inspector (disabled), plus Vectors, TTS, Summarize; results recorded in a test matrix
+- [x] **COMP-01**: Verified working alongside Deep-Swipe, UserSwipes, and Prompt Inspector (disabled), plus Vectors, TTS, Summarize; results recorded in a test matrix
 - [x] **COMP-02**: Extension does not trigger ST auto-swipe or auto-continue cascades
 - [ ] **COMP-03**: Installable as a third-party extension via `manifest.json` with `minimum_client_version` 1.19.0
-- [ ] **COMP-04**: README documents install, usage, fidelity gaps of the chosen route, and makes no prompt-cache savings claims
+- [x] **COMP-04**: README documents install, usage, fidelity gaps of the chosen route, and makes no prompt-cache savings claims
 
 ## v2 Requirements
 
@@ -154,9 +154,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SAFE-02 | Phase 4 | Complete |
 | SAFE-03 | Phase 4 | Complete |
 | SAFE-04 | Phase 4 | Complete |
-| COMP-01 | Phase 5 | Pending |
+| COMP-01 | Phase 5 | Complete |
 | COMP-02 | Phase 5 | Complete |
-| COMP-04 | Phase 5 | Pending |
+| COMP-04 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 46 total
