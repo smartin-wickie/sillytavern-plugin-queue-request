@@ -16,6 +16,8 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 - [x] Target message edited/deleted or new user message sent: pending items cleared, toast shown — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
 - [x] Chat switch (`CHAT_CHANGED`): running item aborted, pending items kept in that chat's metadata — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
 - [x] Queue persists across refresh in `chat_metadata`; on load, user is asked whether to resume (no auto-run) — Validated in Phase 4: Lifecycle, Persistence & Spend Safety
+- [x] Does not trigger ST auto-swipe or auto-continue cascades — Validated in Phase 5: Compatibility & Release (live control/test, LM Studio)
+- [x] Coexists with Prompt Inspector (disabled), MessageSummarize, Parameter Randomizer, WebSearch and bundled Summarize/TTS/Vector Storage — Validated in Phase 5: Compatibility & Release (05-COMPAT-MATRIX.md). Deep-Swipe and UserSwipes untested by user decision.
 
 ### Active
 
@@ -29,7 +31,7 @@ The user can line up multiple alternative replies and keep reading undisturbed; 
 - [ ] Per-item failures (API error, empty reply, abort) reported non-modally and dropped; queue continues
 - [ ] Settings panel: max queue, auto-jump, notification style
 - [ ] Works with all ST backends (Chat Completion and Text Completion at minimum) with no extra configuration
-- [ ] Coexists with Deep-Swipe, UserSwipes, Prompt Inspector
+- [ ] Coexists with Deep-Swipe and UserSwipes (untested; user kept swipe plugins out of the Phase 5 session)
 
 ### Out of Scope
 
@@ -95,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-28 after Phase 4 (Lifecycle, Persistence & Spend Safety) completion*
+*Last updated: 2026-10-29 after Phase 5 (Compatibility & Release) completion*
