@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 5 context gathered
-last_updated: "2026-10-29T00:12:45.165Z"
+last_updated: "2026-10-29T01:30:41.190Z"
 last_activity: 2026-10-28 -- Phase 05 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 28
-  completed_plans: 26
+  completed_plans: 27
   percent: 80
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 ## Current Position
 
 Phase: 05 (compatibility-release) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Executing Phase 05
 Last activity: 2026-10-28 -- Phase 05 execution started
 
@@ -69,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04-05]: getFailureCount aliases getConsecutiveFailures; resume('failures') resets breaker counter; inspector gate only between items
 - [Phase 04]: [04-06] Preset recorded by name only; connection change pauses and asks, never marks stale
 - [Phase 04]: 04-07: takeover pauses 'takeover' before releasing 'restored' to avoid a race start
+- [Phase ?]: UAT 2 (CR-03 LAN plain HTTP) deferred: LAN support low priority
 
 ### Pending Todos
 

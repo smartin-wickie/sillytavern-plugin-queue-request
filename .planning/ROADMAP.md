@@ -166,7 +166,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03-PLAN.md — Live COMP-02 cascade test + folded Phase 4 HUMAN-UAT (COMP-02)
+- [x] 05-03-PLAN.md — Live COMP-02 cascade test + folded Phase 4 HUMAN-UAT (COMP-02)
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [ ] 05-04-PLAN.md — Packaging decision, README, manifest, LICENSE (COMP-04)
@@ -179,4 +179,4 @@ Plans:
 | 2. Single Queued Swipe End-to-End | 5/5 | Complete   | 2026-10-26 |
 | 3. Full Queue Control & UI | 4/4 | Complete   | 2026-10-27 |
 | 4. Lifecycle, Persistence & Spend Safety | 8/8 | Complete   | 2026-10-28 |
-| 5. Compatibility & Release | 2/4 | In Progress|  |
+| 5. Compatibility & Release | 3/4 | In Progress|  |
