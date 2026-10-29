@@ -31,17 +31,26 @@ Session: 2026-10-28, SillyTavern 1.19.0 'release' (06bde939f) at http://127.0.0.
 | Queued Swipes gap toast | 0.1.0 | gap-toast: second queue action in same tab does not warn | PASS | Clicks 2 and 3 in both tabs added items with no second gap toast (toast count stayed 1); queueing succeeded each time. Same tab across page reloads also stayed silent (sessionStorage per tab). | evidence/gap-toast-new-tab.jpg |
 | Queued Swipes gap toast | 0.1.0 | gap-toast: new tab warns again | PASS | After closing the first tab, a new tab warned again on its first queue action. | evidence/gap-toast-new-tab.jpg |
 | Queued Swipes gap toast | 0.1.0 | gap-toast: no gaps active shows no toast | PASS | Every interceptor-declaring extension disabled (bundled stable-diffusion and vectors, plus Randomizer, WebSearch, MessageSummarize); auto_swipe off; squash off. Fresh tab, first queue click: 0 toasts in `#toast-container`, item queued (0/1) and appended (swipes 24 -> 25). The tab group closed during the drain, so the screenshot was taken after the drain in a new tab (pager 6/25). | evidence/gap-toast-no-gaps.jpg |
+| ST auto-swipe + auto-continue (core) | ST 1.19.0 | cascade-control | PASS | Setup works (control). Read live: mainApi `openai`, `auto_swipe`=true, `auto_swipe_minimum_length`=20000 (raised from the planned 5000 so every reply of this model counts as short), `auto_continue.enabled`=true, `allow_chat_completions`=true, `target_length`=5000; input empty; non-group chat; model satyr-v0.1-4b. One native swipe cascaded: swipes 25 -> 32 (7 new; the last one is empty because Stop was pressed), 9 non-dry GENERATION_STARTED events. Stopped by unticking auto-swipe and calling stopGeneration. | evidence/cascade-control.jpg |
+| Queued Swipes | 0.1.0 | cascade-queued | PASS | Same arm, auto-swipe re-ticked. N=32; queued 3; after the drain plus 18 s: final 35 = N+3 exactly; 0 non-dry GENERATION_STARTED events during the queue; swipe_info 35; pager 32/35; swipe_id unchanged at 31; Stop button hidden; 0 console errors. Gap toast shown once in this new tab, containing "Auto-swipe filtering is not applied to queued results." plus the interceptor line; queueing continued (0/3 -> 3/3). Auto-swipe and auto-continue were turned off right after (min length 0, target 400, allow_chat_completions off, as in the snapshot). | evidence/cascade-queued-toast.jpg, evidence/cascade-queued-final.jpg |
+| Queued Swipes ownership | 0.1.0 | uat-1 (CR-02 takeover reload) | PASS | Owner tab left; the read-only tab took over, reloaded the chat with 0 `/api/chats/save` calls and unchanged integrity, and landed paused ("taken over from another tab") with 3 items. Details in 04-HUMAN-UAT.md test 1. | evidence/uat3-demote-takeover.jpg |
+| Queued Swipes ownership | 0.1.0 | uat-2 (CR-03 plain HTTP) | BLOCKED | Manual: ST listens on loopback only (`listen: false`), and loopback is a secure context. Config not changed. Handed to the user (05-03 Task 3). | - |
+| Queued Swipes ownership | 0.1.0 | uat-3 (demote then takeover) | PASS | Owner blocked 9 s, so another tab took over with the toast and the owner demoted. When the other tab left, the original took back over with all 3 items restored, the takeover toast, 0 saves and unchanged integrity. | evidence/uat3-demote-takeover.jpg |
+| Queued Swipes ownership | 0.1.0 | uat-4 (WR-01 background throttling) | PASS | Owner hidden for 7 min with 3 items running and no other ST tab: kept ownership; 3 results appended (38 -> 41); 0 errors. Lease went stale up to ~48 s under Chrome intensive throttling, so handover to a second tab while throttled would discard the in-flight item (not exercised). | evidence/uat4-background.jpg |
 
 restored: `extension_settings.disabledExtensions` was set back to the 12-entry snapshot list (Queued Swipes, Deep-Swipe, WebSearch and Randomizer disabled again; Swipe Pregeneration, Swipe browse-all, Swipe Sculpt, Guided Generations, MessageSummarize and Prompt Inspector enabled again, as before the session). The custom model was set back to `dark-desires-32b-v1.5` and TTS enable to off. Checked after a reload. auto_swipe, auto_continue and squash were never changed. `promptInspectorEnabled` stayed 'false' throughout.
 
+state restored (after 05-03): auto_swipe off, auto_swipe_minimum_length 0, auto_continue {enabled:false, allow_chat_completions:false, target_length:400}, squash off, disabledExtensions = 12-entry snapshot, custom model dark-desires-32b-v1.5, TTS off. Checked after a reload.
+
 ## Summary
 
-- **PASS: 11.** Baseline, Prompt Inspector (disabled), MessageSummarize, Parameter Randomizer, WebSearch, Summarize, combined, and the four gap-toast rows.
+- **PASS: 16.** Baseline, Prompt Inspector (disabled), MessageSummarize, Parameter Randomizer, WebSearch, Summarize, combined, the four gap-toast rows, cascade-control, cascade-queued, uat-1, uat-3 and uat-4.
 - **FAIL: 0.**
-- **BLOCKED: 4.**
+- **BLOCKED: 5.**
   - Deep-Swipe and UserSwipes: the user decided no swipe plugins would be tested or installed.
   - TTS: no voice is configured, so the own-job check could not run. The queue side was clean.
   - Vector Storage: never configured, so the injection check did not run. Queue coexistence is covered.
+  - uat-2 (CR-03 plain HTTP): manual, needs a LAN device. ST is loopback only.
 
 Queue behaviour held in every run: every queued item appended exactly one swipe, `swipe_info` stayed parallel, `swipe_id` never moved, and there were no console errors from Queued Swipes or any other extension. Across the session 18 swipes were appended to the throwaway message (6 -> 25, including one in the no-gaps check).
 
