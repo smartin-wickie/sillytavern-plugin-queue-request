@@ -16,39 +16,39 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Queue Control
 
-- [ ] **QUEUE-01**: User can click a control next to the swipe arrows on the latest AI message to add one swipe request to the queue
-- [ ] **QUEUE-02**: User can add more requests while the queue is running, up to the configured max (default 5, hard max 20)
-- [ ] **QUEUE-03**: User can run `/queueswipe [count]` to queue swipes; count is clamped to remaining capacity with feedback
+- [x] **QUEUE-01**: User can click a control next to the swipe arrows on the latest AI message to add one swipe request to the queue
+- [x] **QUEUE-02**: User can add more requests while the queue is running, up to the configured max (default 5, hard max 20)
+- [x] **QUEUE-03**: User can run `/queueswipe [count]` to queue swipes; count is clamped to remaining capacity with feedback
 - [ ] **QUEUE-04**: User can run `/queuecancel` (all) and `/queuestatus` (pending/running summary)
-- [ ] **QUEUE-05**: User can queue or cancel from the extensions wand menu
+- [x] **QUEUE-05**: User can queue or cancel from the extensions wand menu
 - [ ] **QUEUE-06**: User can cancel the running item or all items from the badge
-- [ ] **QUEUE-07**: User can open a per-item list and cancel individual pending items
+- [x] **QUEUE-07**: User can open a per-item list and cancel individual pending items
 - [ ] **QUEUE-08**: Queue control is disabled in group chats and on chats with no AI message to swipe
 
 ### Generation
 
-- [ ] **GEN-01**: Queued items run strictly one at a time; no concurrent generations from the extension and no overlap with ST's own generation
-- [ ] **GEN-02**: Each item uses the same prompt context a native swipe of the target message would use at run time
-- [ ] **GEN-03**: Queued generation never streams into or changes the visible message, and does not lock swipe arrows or the Send button (subject to SPIKE-01 route)
-- [ ] **GEN-04**: Output is post-processed like a native swipe (stop strings, regex, trimming, reasoning parsing)
+- [x] **GEN-01**: Queued items run strictly one at a time; no concurrent generations from the extension and no overlap with ST's own generation
+- [x] **GEN-02**: Each item uses the same prompt context a native swipe of the target message would use at run time
+- [x] **GEN-03**: Queued generation never streams into or changes the visible message, and does not lock swipe arrows or the Send button (subject to SPIKE-01 route)
+- [x] **GEN-04**: Output is post-processed like a native swipe (stop strings, regex, trimming, reasoning parsing)
 - [ ] **GEN-05**: Works with Chat Completion and Text Completion backends using the user's current connection and preset, with no extra configuration
-- [ ] **GEN-06**: Item success is judged by observable post-conditions (non-empty result appended), not by a resolved promise or events
+- [x] **GEN-06**: Item success is judged by observable post-conditions (non-empty result appended), not by a resolved promise or events
 
 ### Swipe Append
 
-- [ ] **SWIPE-01**: Completed result is appended to `swipes[]` with a matching `swipe_info[]` entry (`send_date`, `gen_started`, `gen_finished`, `extra` incl. api, model, reasoning); arrays stay equal length with no holes
-- [ ] **SWIPE-02**: Pager total (`k/total`) updates live without re-rendering or losing scroll position
-- [ ] **SWIPE-03**: Displayed `swipe_id` never changes on completion unless the user enabled auto-jump and is on the newest swipe
-- [ ] **SWIPE-04**: Append happens only when ST is idle; results finishing during a native generation are parked and flushed afterward
-- [ ] **SWIPE-05**: Chat is saved via ST save functions after each append; `chat` array is never truncated or mutated to shape prompts
+- [x] **SWIPE-01**: Completed result is appended to `swipes[]` with a matching `swipe_info[]` entry (`send_date`, `gen_started`, `gen_finished`, `extra` incl. api, model, reasoning); arrays stay equal length with no holes
+- [x] **SWIPE-02**: Pager total (`k/total`) updates live without re-rendering or losing scroll position
+- [x] **SWIPE-03**: Displayed `swipe_id` never changes on completion unless the user enabled auto-jump and is on the newest swipe
+- [x] **SWIPE-04**: Append happens only when ST is idle; results finishing during a native generation are parked and flushed afterward
+- [x] **SWIPE-05**: Chat is saved via ST save functions after each append; `chat` array is never truncated or mutated to shape prompts
 
 ### Lifecycle Guards
 
 - [x] **GUARD-01**: When the user starts a manual send/swipe/continue, the in-flight item finishes in background (result parked), and remaining items wait until the manual generation ends
 - [x] **GUARD-02**: When the target message is edited or deleted, or the user sends a new message, pending items are cleared and a toast explains why
 - [x] **GUARD-03**: When the user switches chats, the running item is aborted and pending items stay stored with the original chat
-- [ ] **GUARD-04**: Every append and save re-checks a chat identity token (chat id + `chat_metadata.integrity`) and target fingerprint; a mismatch discards the result instead of writing to the wrong chat
-- [ ] **GUARD-05**: A failed item (API error, empty reply, abort) is reported with a non-modal toast and dropped; remaining items continue
+- [x] **GUARD-04**: Every append and save re-checks a chat identity token (chat id + `chat_metadata.integrity`) and target fingerprint; a mismatch discards the result instead of writing to the wrong chat
+- [x] **GUARD-05**: A failed item (API error, empty reply, abort) is reported with a non-modal toast and dropped; remaining items continue
 - [x] **GUARD-06**: Native Stop pressed by the user is distinguished from queue-initiated cancel
 
 ### Persistence
@@ -67,17 +67,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### UI & Settings
 
-- [ ] **UI-01**: Badge on the latest AI message shows pending count and a running indicator
-- [ ] **UI-02**: Progress bar at the top of chat shows queue progress with a stop control
-- [ ] **UI-03**: Completion and error toasts are coalesced (no toast storm for multi-item queues)
+- [x] **UI-01**: Badge on the latest AI message shows pending count and a running indicator
+- [x] **UI-02**: Progress bar at the top of chat shows queue progress with a stop control
+- [x] **UI-03**: Completion and error toasts are coalesced (no toast storm for multi-item queues)
 - [ ] **SET-01**: Settings panel in the Extensions drawer: enable, max queue, auto-jump, notification style, circuit-breaker threshold
-- [ ] **SET-02**: Settings persist in `extension_settings` and merge with defaults on load/upgrade
+- [x] **SET-02**: Settings persist in `extension_settings` and merge with defaults on load/upgrade
 
 ### Compatibility & Release
 
 - [x] **COMP-01**: Verified working alongside Deep-Swipe, UserSwipes, and Prompt Inspector (disabled), plus Vectors, TTS, Summarize; results recorded in a test matrix
 - [x] **COMP-02**: Extension does not trigger ST auto-swipe or auto-continue cascades
-- [ ] **COMP-03**: Installable as a third-party extension via `manifest.json` with `minimum_client_version` 1.19.0
+- [x] **COMP-03**: Installable as a third-party extension via `manifest.json` with `minimum_client_version` 1.19.0
 - [x] **COMP-04**: README documents install, usage, fidelity gaps of the chosen route, and makes no prompt-cache savings claims
 
 ## v2 Requirements
@@ -115,33 +115,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SPIKE-02 | Phase 1 | Done |
 | SPIKE-03 | Phase 1 | Done |
 | SPIKE-04 | Phase 1 | Done |
-| QUEUE-01 | Phase 2 | Pending |
-| QUEUE-02 | Phase 2 | Pending |
-| QUEUE-08 | Phase 2 | Pending |
-| GEN-01 | Phase 2 | Pending |
-| GEN-02 | Phase 2 | Pending |
-| GEN-03 | Phase 2 | Pending |
-| GEN-04 | Phase 2 | Pending |
-| GEN-05 | Phase 2 | Pending |
-| GEN-06 | Phase 2 | Pending |
-| SWIPE-01 | Phase 2 | Pending |
-| SWIPE-02 | Phase 2 | Pending |
-| SWIPE-03 | Phase 2 | Pending |
-| SWIPE-04 | Phase 2 | Pending |
-| SWIPE-05 | Phase 2 | Pending |
-| GUARD-04 | Phase 2 | Pending |
-| GUARD-05 | Phase 2 | Pending |
-| UI-01 | Phase 2 | Pending |
-| SET-02 | Phase 2 | Pending |
-| COMP-03 | Phase 2 | Pending |
-| QUEUE-03 | Phase 3 | Pending |
-| QUEUE-04 | Phase 3 | Pending |
-| QUEUE-05 | Phase 3 | Pending |
-| QUEUE-06 | Phase 3 | Pending |
-| QUEUE-07 | Phase 3 | Pending |
-| UI-02 | Phase 3 | Pending |
-| UI-03 | Phase 3 | Pending |
-| SET-01 | Phase 3 | Pending |
+| QUEUE-01 | Phase 2 | Complete |
+| QUEUE-02 | Phase 2 | Complete |
+| QUEUE-08 | Phase 2 | Gap (v1.0 audit) |
+| GEN-01 | Phase 2 | Complete |
+| GEN-02 | Phase 2 | Complete |
+| GEN-03 | Phase 2 | Complete |
+| GEN-04 | Phase 2 | Complete |
+| GEN-05 | Phase 2 | Gap (v1.0 audit) |
+| GEN-06 | Phase 2 | Complete |
+| SWIPE-01 | Phase 2 | Complete |
+| SWIPE-02 | Phase 2 | Complete |
+| SWIPE-03 | Phase 2 | Complete |
+| SWIPE-04 | Phase 2 | Complete |
+| SWIPE-05 | Phase 2 | Complete |
+| GUARD-04 | Phase 2 | Complete |
+| GUARD-05 | Phase 2 | Complete |
+| UI-01 | Phase 2 | Complete |
+| SET-02 | Phase 2 | Complete |
+| COMP-03 | Phase 2 | Complete |
+| QUEUE-03 | Phase 3 | Complete |
+| QUEUE-04 | Phase 3 | Gap (v1.0 audit) |
+| QUEUE-05 | Phase 3 | Complete |
+| QUEUE-06 | Phase 3 | Gap (v1.0 audit) |
+| QUEUE-07 | Phase 3 | Complete |
+| UI-02 | Phase 3 | Complete |
+| UI-03 | Phase 3 | Complete |
+| SET-01 | Phase 3 | Gap (v1.0 audit) |
 | GUARD-01 | Phase 4 | Complete |
 | GUARD-02 | Phase 4 | Complete |
 | GUARD-03 | Phase 4 | Complete |
