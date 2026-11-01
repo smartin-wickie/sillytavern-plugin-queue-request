@@ -533,6 +533,8 @@ export async function registerSettingsPanel() {
 ```
 Source: [VERIFIED: docs.sillytavern.app/for-contributors/writing-extensions] for the `inline-drawer` markup and `renderExtensionTemplateAsync` call shape, both fetched verbatim this session; live-read discipline from `ARCHITECTURE.md` §5 and `src/store.js`'s existing `getMaxQueueSize()`.
 
+**Note (added in revision 1, bm-plan-checker blocker fix):** This snippet shows the live *read*/write of `extension_settings[MODULE_NAME].maxQueueSize` — necessary but not sufficient for `maxQueueSize` specifically. `store.js`'s `effectiveCap()`/`getMaxQueueSize()` compute their result from a value captured once as a `createStore({ maxQueueSize })` constructor parameter, not from `extension_settings` directly, so writing the new value to `extension_settings` alone does not change what the already-constructed `store` instance enforces. `03-04-PLAN.md` closes this gap with a `store.setMaxQueueSize(n)` mutator that the `#qs_max_queue` handler calls immediately after the write shown above — see `03-04-PLAN.md` Task 1.
+
 ### Wand menu entries (QUEUE-05) — verify live before shipping
 
 ```javascript
@@ -580,22 +582,25 @@ Source: [ASSUMED] MEDIUM — `#extensionsMenu` selector and the `extension_conta
 | A3 | A `0 → nonzero → 0` transition of `store.pendingCount() + store.runningCount()` is the correct, sufficient definition of a toast-coalescing "run boundary" (UI-03) | Architecture Patterns (Pattern 3), Common Pitfalls (#2) | If wrong, toasts could fire more or less often than intended — a UX bug, not a data-safety bug. The UI-SPEC's Interaction Contract text ("bounded by the queue going empty, not by a fixed batch size") directly supports this definition, so confidence here is actually closer to CITED than ASSUMED. |
 | A4 | `#sheld`/`#chat` (ST's chat container) is the correct insertion point for the progress bar, inserted via `.before()`/`.prepend()` the way SwipePregen does it | Architecture Patterns (Pattern diagram), UI-SPEC cross-reference | If wrong, the progress bar renders in the wrong location or breaks ST's own chat layout — verify live (Open Questions). |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact `#extensionsMenu` DOM structure/classes in the live ST 1.19.0 release this project targets**
+1. **Exact `#extensionsMenu` DOM structure/classes in the live ST 1.19.0 release this project targets** — (RESOLVED: `03-02-PLAN.md` Task 3 live-verification checkpoint, step 1 — "Open the wand/extensions menu... Confirm 'Queue swipe' and 'Cancel all queued' both appear, styled consistently... If the markup looks wrong, note the actual DOM structure ST renders so `src/wandMenu.js`'s selectors/classes can be corrected.")
    - What we know: A third-party competitor (SwipePregen) appends `<div class="extension_container"><div class="list-group-item flex-container flexGap5 alignItemsCenter interactable">...` into `#extensionsMenu`, with a polling fallback for when the menu doesn't exist yet. ST's official extension-writing docs do not mention wand-menu registration at all (confirmed this session).
    - What's unclear: Whether this is truly ST core's documented convention or an undocumented idiom several extensions happen to share; exact ARIA/keyboard-interaction expectations for `interactable` rows.
    - Recommendation: Treat the Code Examples wand-menu snippet as a strong starting point, but have the executing plan include a live smoke-test step (open the wand menu in a real ST 1.19.0 instance, confirm the new entries render and click correctly) before considering QUEUE-05 done — consistent with the UI-SPEC's own "verify live, never guess from memory" rule for colors.
+   - Resolution mechanism: `03-02-PLAN.md`'s own Task 3 checkpoint carries out exactly this live smoke test, with an explicit fallback instruction to correct the selectors/classes if the live DOM differs, before QUEUE-05 is marked done.
 
-2. **Progress bar insertion point and show/hide mechanics**
+2. **Progress bar insertion point and show/hide mechanics** — (RESOLVED: `03-03-PLAN.md` Task 3 live-verification checkpoint, steps 1 and 6 — confirms the bar renders without clipping/overlap and has the executor report back the actual `#sheld`/`#chat`-equivalent selector and accent variable found in DevTools, correcting `src/progressBar.js`/`style.css` if the placeholder assumption was wrong.)
    - What we know: SwipePregen inserts a `<progress>`-based bar either `.before()` the chat container or `.prepend()`-ed into `#sheld`; `FEATURES.md` independently corroborates "top-of-chat bar with stop" as the competitor convention.
    - What's unclear: The precise selector (`#sheld` vs `#chat` vs some wrapper) in the current ST 1.19.0 release, and whether any existing ST or other-extension CSS would conflict with a `position: sticky`/`position: absolute` top-of-chat element.
    - Recommendation: Same live-verification step as above; the UI-SPEC already anticipates this ("exact value confirmed during implementation against the live ST layout, not guessed from memory" — Spacing Scale exceptions).
+   - Resolution mechanism: `03-03-PLAN.md`'s own Task 3 checkpoint carries out exactly this live verification, with an explicit instruction to report the real selector/variable so the placeholder can be corrected, before UI-02 is marked done.
 
-3. **`runner.js` needs a success-side callback (`onItemDone`) that does not exist yet**
+3. **`runner.js` needs a success-side callback (`onItemDone`) that does not exist yet** — (RESOLVED: implemented in `03-01-PLAN.md` Task 1 — `onItemDone`/`offItemDone` added to `runner.js`'s returned object, mirroring `onItemFailed`/`offItemFailed` exactly, firing immediately after the existing `store.markDone(item.id)` call inside `processNext()`.)
    - What we know: `runner.js` currently exposes `onItemFailed`/`offItemFailed` but nothing fires on a successful `store.markDone(item.id)`.
    - What's unclear: Nothing architecturally — this is a known, small gap, not an open design question. Flagging here so the plan explicitly includes adding it (needed by both the UI-03 toast accumulator's `completed` counter and the UI-02 progress bar's numerator).
    - Recommendation: Add `onItemDone(cb)`/`offItemDone(cb)` to `runner.js`'s returned object, mirroring the existing `onItemFailed` shape exactly, firing at the point `store.markDone(item.id)` currently runs in `processNext()`.
+   - Resolution mechanism: `03-01-PLAN.md` Task 1's action and acceptance_criteria implement and verify exactly this (see its `grep -n "abortRunning, onItemDone, offItemDone" src/runner.js` check).
 
 ## Security Domain
 

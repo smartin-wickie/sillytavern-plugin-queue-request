@@ -1,0 +1,84 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-11-01T21:37:43.032Z",
+  "source": "auto-postool",
+  "partial": true,
+  "phase": "05",
+  "phase_name": "compatibility-release",
+  "phase_dir": ".planning/phases/05-compatibility-release",
+  "plan": null,
+  "task": null,
+  "total_tasks": 4,
+  "status": "auto-checkpoint",
+  "completed_tasks": [
+    {
+      "id": "01",
+      "name": "Task 1: Gap warner pure module and COMP-02 unit proofs (tests first)",
+      "status": "done"
+    },
+    {
+      "id": "02",
+      "name": "Task 1: Preflight - ST URL, browser tools, LM Studio model, UserSwipes repo",
+      "status": "done"
+    },
+    {
+      "id": "03",
+      "name": "Task 1: COMP-02 live cascade test with control",
+      "status": "done"
+    },
+    {
+      "id": "04",
+      "name": "Task 1: Release packaging decision",
+      "status": "done"
+    }
+  ],
+  "remaining_tasks": [],
+  "blockers": [
+    {
+      "description": "Many ST internals are `[Recall]` and unverified until the Phase 1 spike runs against a live ST 1.19.0 instance.",
+      "type": "technical",
+      "workaround": ""
+    },
+    {
+      "description": "Interceptor (Vectors) parity under R1 is LOW confidence.",
+      "type": "technical",
+      "workaround": ""
+    },
+    {
+      "description": "Multi-tab ownership is untested; ST has no cross-tab lock.",
+      "type": "technical",
+      "workaround": ""
+    }
+  ],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Generation route (R1 dryRun capture + own transport vs R2 native swipe + view restore) is undecided; Phase 1 spike resolves it and gates Phases 2-4.",
+      "rationale": "",
+      "phase": "05"
+    },
+    {
+      "decision": "[Phase 04]: [Phase 04-05]: getFailureCount aliases getConsecutiveFailures; resume('failures') resets breaker counter; inspector gate only between items",
+      "rationale": "",
+      "phase": "05"
+    },
+    {
+      "decision": "[Phase 04]: [04-06] Preset recorded by name only; connection change pauses and asks, never marks stale",
+      "rationale": "",
+      "phase": "05"
+    },
+    {
+      "decision": "[Phase 04]: 04-07: takeover pauses 'takeover' before releasing 'restored' to avoid a race start",
+      "rationale": "",
+      "phase": "05"
+    },
+    {
+      "decision": "[Phase ?]: UAT 2 (CR-03 LAN plain HTTP) deferred: LAN support low priority",
+      "rationale": "",
+      "phase": "05"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Milestone complete",
+  "context_notes": "Status: Milestone complete\n\nStopped at: Milestone complete (Phase 05 was final phase)"
+}

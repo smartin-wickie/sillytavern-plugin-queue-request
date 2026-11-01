@@ -22,8 +22,9 @@ Queue several swipe generations for the latest AI message while you keep reading
   - `/queueswipe [count]` queues `count` additional swipes (default 1). Returns the number actually queued. The queue size limit applies.
   - `/queuecancel` cancels all queued items and the one currently running. Returns the number cancelled.
   - `/queuestatus` reports pending and running counts, and the pause reason if paused.
+- `/queueswipe` is intended only for supported single-character chats whose latest message is an AI message. The visible queue control hides itself in unsupported contexts; until command-side validation is complete, do not use `/queueswipe` in group chats, empty chats, or chats ending with a user message.
 - The queue is saved with the chat. After a refresh, a popup asks whether to resume or discard the restored items.
-- The queue pauses (and says why) when: it was restored after a reload, the connection or API settings changed, Prompt Inspector is on, several items failed in a row, or another tab took over the queue. Resume it from the badge.
+- The queue pauses (and says why) when: it was restored after a reload, the API/model/preset connection changed, Prompt Inspector is on, several items failed in a row, or another tab took over the queue. Resume it from the badge.
 
 ## Settings
 
@@ -40,7 +41,7 @@ Found in the Extensions drawer under "Queued Swipes".
 ## Safety behavior
 
 - Strictly serial: one queued request runs at a time, and the extension never starts a normal generation of its own.
-- The queue clears when you edit or delete the message, or send a new user message, or the chat changes.
+- The queue clears when you edit or delete the target message, or send a new user message. Switching chats pauses the queue for the old chat; when you return, a popup lets you resume or discard the restored items.
 - A failed item does not block the rest. After the configured number of failures in a row the queue pauses.
 - The extension never writes chat files directly. It saves through SillyTavern's own save functions.
 - Only one browser tab manages the queue for a chat. Other tabs show it read-only and can take over.
