@@ -1,4 +1,4 @@
-import { canQueue, promptInspectorEnabled, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
+import { canQueue, isGenerating, swipeState, promptInspectorEnabled, eventSource, event_types, MODULE_NAME, extension_settings } from './st-bridge.js';
 import { cancelAll, resumeQueue, enqueue } from './queueActions.js';
 import { failuresInARow, pauseReasonLabel, statusLineFor } from './pauseLabels.js';
 import { createRunAccumulator } from './toastAccumulator.js';
@@ -6,6 +6,7 @@ import { createRunAccumulator } from './toastAccumulator.js';
 const CONTROL_CLASS = 'qs-queue-control';
 const RENDER_RETRY_MS = 250;
 const RENDER_RETRY_LIMIT = 20;
+const SWIPE_STATE_SWIPING = 'swiping';
 const CONTROL_DISABLED_CLASS = 'qs-queue-control--disabled';
 const BADGE_CLASS = 'qs-queue-badge';
 const IDLE_TITLE = 'Queue a swipe';
@@ -317,26 +318,32 @@ function onControlClick(store, runner) {
 export function registerQueueControl({ store, runner }) {
   const render = () => injectControl(store, runner);
   eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, render);
-  eventSource.on(event_types.MESSAGE_SWIPED, render);
   eventSource.on(event_types.CHAT_CHANGED, render);
   eventSource.on(event_types.APP_READY, render);
-  // A native swipe fires MESSAGE_SWIPED while ST is busy, so canQueue() is false and the control
-  // is removed; a stopped generation renders no message, so nothing above restores it. ST clears
-  // its busy state some time after GENERATION_ENDED, so poll briefly until canQueue() holds.
-  const renderAfterGeneration = () => {
+  // ST emits MESSAGE_SWIPED mid-swipe and clears its swipe state only after the animation, or after
+  // the generation on an overswipe. A render during that window sees canQueue() false and removes
+  // the control, and paging fires no later event to restore it. A stopped generation renders no
+  // message either, and ST stays busy for a while after GENERATION_ENDED. So wait for canQueue().
+  // ST's emit awaits every listener in turn, so a slow extension can hold the swipe open past the
+  // retry budget: while ST reports a swipe in progress the wait has no limit. A generation
+  // running inside that swipe still hides the control, as queueing is blocked until it ends.
+  const renderWhenIdle = () => {
     let tries = 0;
     const tick = () => {
-      if (canQueue() || tries >= RENDER_RETRY_LIMIT) {
+      const midSwipe = swipeState() === SWIPE_STATE_SWIPING;
+      if (canQueue() || (!midSwipe && tries >= RENDER_RETRY_LIMIT)) {
         render();
         return;
       }
+      if (midSwipe && isGenerating()) render();
       tries += 1;
       setTimeout(tick, RENDER_RETRY_MS);
     };
     setTimeout(tick, 0);
   };
-  eventSource.on(event_types.GENERATION_ENDED, renderAfterGeneration);
-  eventSource.on(event_types.GENERATION_STOPPED, renderAfterGeneration);
+  eventSource.on(event_types.MESSAGE_SWIPED, renderWhenIdle);
+  eventSource.on(event_types.GENERATION_ENDED, renderWhenIdle);
+  eventSource.on(event_types.GENERATION_STOPPED, renderWhenIdle);
 
   // The badge/disabled-state must also update on every queue mutation, not only on the DOM
   // re-render events above — a click that fills the queue must disable the control immediately,
