@@ -54,6 +54,8 @@ Verification: vitest suite, 231 tests passing after fixes. Live smoke run via Ch
 
 **2. [Rule 1 - Bug] Queue control vanished after a stopped native swipe** - MESSAGE_SWIPED fires while ST is busy, canQueue() is false, so the control was removed, and a stopped generation renders no message to restore it. src/ui.js now re-renders after GENERATION_ENDED/STOPPED by polling until canQueue() (250ms x 20), and store/runner change listeners re-inject a missing control. DOM-only, no unit test; verified live. Commit e5b57f5.
 
+Follow-up (2026-11-01): this fix covered only swipes that generate. Paging between existing swipes still removed the control, because no GENERATION_ENDED/STOPPED fires. Commit 01cdaf5 routes MESSAGE_SWIPED through the same poller, renamed `renderWhenIdle`, and adds test/ui.test.js. See .planning/debug/resolved/clock-gone-after-swipe-back.md.
+
 ## Open issues / follow-ups (not fixed)
 
 - After a simulated demote then takeover (fake foreign lease written from the same document), the tab became owner with no takeover toast and an empty in-memory store while chat_metadata still held 3 items. Possibly a simulation artifact; needs investigation.

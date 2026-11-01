@@ -84,7 +84,7 @@ If our background request finishes and pushes a swipe while a native swipe gener
 
 | Purpose | Constant -> value | Emit site and payload |
 |---------|-------------------|-----------------------|
-| Swipe happened | `MESSAGE_SWIPED` -> `'message_swiped'` | `swipe()` -> `animateSwipe`: `(mesId)`. Fires for navigation and for regenerate; **not** fired by our appender (we do not swipe) |
+| Swipe happened | `MESSAGE_SWIPED` -> `'message_swiped'` | `swipe()` -> `animateSwipe`: `(mesId)`. Fires for navigation and for regenerate; **not** fired by our appender (we do not swipe). Emitted mid-swipe, while `swipeState` is `swiping` (`script.js:9995`, `:10315`, cleared at `:10099`), so `swipe.isAllowed()` and `canQueue()` are false inside the listener. Do not make visibility decisions there; wait for idle (`renderWhenIdle` in `src/ui.js`) |
 | Swipe deleted | `MESSAGE_SWIPE_DELETED` -> `'message_swipe_deleted'` | `deleteSwipe`: `{messageId, swipeId, newSwipeId}` |
 | Generation start | `GENERATION_STARTED` -> `'generation_started'` | top of `Generate`: `(type, {automatic_trigger, force_name2, quiet_prompt, quietToLoud, skipWIAN, force_chid, signal, quietImage}, dryRun)`. **Also fires for dry runs; check 3rd arg** (tts, macros, quick-reply all do) |
 | Generation end | `GENERATION_ENDED` -> `'generation_ended'` | `hideStopButton()`: `(chat.length)`, only if stop button was visible |

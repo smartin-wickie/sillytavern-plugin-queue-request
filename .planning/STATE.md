@@ -5,7 +5,7 @@ milestone_name: milestone
 status: milestone_complete
 stopped_at: Milestone complete (Phase 05 was final phase)
 last_updated: 2026-10-29T03:16:32.899Z
-last_activity: 2026-10-28 -- Phase 05 execution started
+last_activity: 2026-11-01 -- Fixed queue control disappearing when paging between swipes
 progress:
   total_phases: 5
   completed_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-25)
 Phase: 05
 Plan: Not started
 Status: Milestone complete
-Last activity: 2026-10-29
+Last activity: 2026-11-01
 
 Progress: [██████████] 100%
 
@@ -81,6 +81,12 @@ None yet.
 - Many ST internals are `[Recall]` and unverified until the Phase 1 spike runs against a live ST 1.19.0 instance.
 - Interceptor (Vectors) parity under R1 is LOW confidence.
 - Multi-tab ownership is untested; ST has no cross-tab lock.
+
+### Resolved Debug Sessions
+
+| Date | Issue | Commit | Record |
+|------|-------|--------|--------|
+| 2026-11-01 | Queue control disappeared when paging between swipes | 01cdaf5 | `.planning/debug/resolved/clock-gone-after-swipe-back.md` |
 
 ## Session Continuity
 
